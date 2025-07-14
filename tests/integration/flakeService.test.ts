@@ -159,10 +159,17 @@ describe('FlakeService Integration Tests', () => {
       
       // Initialize git repo in temp directory
       await exec.exec('git', ['init'], { cwd: tempDir });
-      await exec.exec('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir });
-      await exec.exec('git', ['config', 'user.name', 'Test User'], { cwd: tempDir });
       await exec.exec('git', ['add', '.'], { cwd: tempDir });
-      await exec.exec('git', ['commit', '-m', 'Initial commit'], { cwd: tempDir });
+      await exec.exec('git', ['commit', '-m', 'Initial commit'], { 
+        cwd: tempDir,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'Test User',
+          GIT_AUTHOR_EMAIL: 'test@example.com',
+          GIT_COMMITTER_NAME: 'Test User',
+          GIT_COMMITTER_EMAIL: 'test@example.com'
+        }
+      });
       
       // Change to temp directory for the test
       process.chdir(tempDir);
