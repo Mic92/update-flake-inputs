@@ -30,6 +30,9 @@ jobs:
       - name: Lint code
         run: npm run lint
 
+      - name: Run tests
+        run: npm test
+
       - name: Check code formatting
         run: |
           npm run format
