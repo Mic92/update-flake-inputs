@@ -249,6 +249,20 @@
                 width: 100%;
             }
         }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -261,6 +275,11 @@
         <div class="info-box">
             <h4>ℹ️ What is this for?</h4>
             <p>The Update Flake Inputs GitHub Action needs a GitHub App token (instead of GITHUB_TOKEN) to trigger CI workflows on the created pull requests. This form helps you create that app with the correct permissions.</p>
+        </div>
+
+        <div class="info-box" style="background-color: #f0f9ff; border-color: #0ea5e9;">
+            <h4 style="color: #0c4a6e;">💡 Pro Tip</h4>
+            <p style="color: #0c4a6e;">Fill out the form and click "📋 Share Form" to get a URL you can share with others. The URL will contain all your form data so they can create their app with the same settings!</p>
         </div>
 
         <form id="appForm">
@@ -324,6 +343,7 @@
             <div class="form-actions">
                 <button type="submit" class="btn">Create GitHub App</button>
                 <button type="button" class="btn btn-secondary" onclick="fillSampleData()">Fill Sample Data</button>
+                <button type="button" class="btn btn-secondary" onclick="shareCurrentForm()">📋 Share Form</button>
             </div>
         </form>
 
@@ -341,6 +361,11 @@
     </div>
 
     <script>
+        // Load form values from URL parameters on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromUrlParams();
+        });
+
         // Handle organization type selection
         document.getElementById('orgType').addEventListener('change', function() {
             const orgNameGroup = document.getElementById('orgNameGroup');
@@ -349,6 +374,7 @@
             } else {
                 orgNameGroup.style.display = 'none';
             }
+            updateUrlParams();
         });
 
         // Auto-fill URL based on repository
@@ -359,7 +385,11 @@
             if (repo && repo.includes('/') && !urlField.value) {
                 urlField.value = `https://github.com/${repo}`;
             }
+            updateUrlParams();
         });
+
+        // Update URL params when form fields change
+        document.getElementById('appForm').addEventListener('input', updateUrlParams);
 
         // Form submission
         document.getElementById('appForm').addEventListener('submit', function(e) {
@@ -406,6 +436,121 @@
             document.getElementById('appDescription').value = 'Automatically updates Nix flake inputs in my repositories';
             document.getElementById('repository').value = 'octocat/Hello-World';
             document.getElementById('appUrl').value = 'https://github.com/octocat/Hello-World';
+            updateUrlParams();
+        }
+
+        // Function to update URL parameters based on form values
+        function updateUrlParams() {
+            const params = new URLSearchParams();
+            const formData = new FormData(document.getElementById('appForm'));
+            
+            for (const [key, value] of formData.entries()) {
+                if (value && value.trim() !== '') {
+                    params.set(key, value);
+                }
+            }
+            
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        // Function to load form values from URL parameters
+        function loadFromUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Map of URL parameter names to form field IDs
+            const fieldMap = {
+                'appName': 'appName',
+                'appDescription': 'appDescription', 
+                'repository': 'repository',
+                'appUrl': 'appUrl',
+                'orgType': 'orgType',
+                'orgName': 'orgName'
+            };
+            
+            for (const [paramName, fieldId] of Object.entries(fieldMap)) {
+                const value = params.get(paramName);
+                if (value) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = value;
+                        
+                        // Trigger change event for select elements
+                        if (field.tagName === 'SELECT') {
+                            field.dispatchEvent(new Event('change'));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Function to copy current form state as shareable URL
+        function shareCurrentForm() {
+            updateUrlParams();
+            const currentUrl = window.location.href;
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(currentUrl).then(() => {
+                    showNotification('URL copied to clipboard! Share this link to pre-fill the form.', 'success');
+                }).catch(() => {
+                    showFallbackCopy(currentUrl);
+                });
+            } else {
+                showFallbackCopy(currentUrl);
+            }
+        }
+
+        function showFallbackCopy(url) {
+            // Create a temporary textarea to copy the URL
+            const textarea = document.createElement('textarea');
+            textarea.value = url;
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // For mobile devices
+            
+            try {
+                document.execCommand('copy');
+                showNotification('URL copied to clipboard! Share this link to pre-fill the form.', 'success');
+            } catch (err) {
+                showNotification('Copy the URL from your address bar to share this form.', 'info');
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        function showNotification(message, type = 'info') {
+            // Remove existing notification
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: ${type === 'success' ? '#d1fae5' : '#dbeafe'};
+                border: 1px solid ${type === 'success' ? '#10b981' : '#3b82f6'};
+                color: ${type === 'success' ? '#065f46' : '#1e40af'};
+                padding: 12px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                max-width: 300px;
+                z-index: 1000;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
         }
 
         function showNextSteps(appName, repository, orgType, orgName) {
