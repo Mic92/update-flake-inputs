@@ -37,6 +37,7 @@ exports.FlakeService = exports.Flake = void 0;
 const exec = __importStar(require("@actions/exec"));
 const core = __importStar(require("@actions/core"));
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 const glob = __importStar(require("glob"));
 class Flake {
     filePath;
@@ -74,6 +75,12 @@ class FlakeService {
                     return false;
                 });
                 if (!shouldExcludeFile) {
+                    // Check if lock file exists
+                    const lockFilePath = await this.getFlakeLockPath(file);
+                    if (!fs.existsSync(lockFilePath)) {
+                        core.info(`Skipping ${file} - no lock file found at ${lockFilePath}`);
+                        continue;
+                    }
                     // Collect excluded outputs for this file
                     const excludedOutputs = excludeList
                         .filter((pattern) => {

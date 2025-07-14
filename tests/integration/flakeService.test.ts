@@ -59,6 +59,10 @@ describe('FlakeService Integration Tests', () => {
       expect(minimalFlake).toBeDefined();
       expect(minimalFlake!.inputs).toContain('flake-utils');
       expect(minimalFlake!.inputs.length).toBe(1);
+      
+      // Verify that flakes without lock files are skipped
+      const localFlakeRepo = flakes.find(f => f.filePath === 'local-flake-repo/flake.nix');
+      expect(localFlakeRepo).toBeUndefined();
     }, 10000);
 
     it('should respect exclude patterns for files', async () => {
