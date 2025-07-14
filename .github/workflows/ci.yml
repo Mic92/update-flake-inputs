@@ -32,12 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint code
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test
-
       - name: Check code formatting
         run: |
           npm run format
@@ -54,6 +48,9 @@ jobs:
             exit 1
           fi
           echo "✅ Code is properly formatted!"
+
+      - name: Lint code
+        run: npm run lint
 
       - name: Build action
         run: npm run build
@@ -73,6 +70,9 @@ jobs:
             exit 1
           fi
           echo "✅ No uncommitted changes found - built files are up-to-date!"
+
+      - name: Run tests
+        run: npm test
 
       - name: Smoke test action
         uses: ./
