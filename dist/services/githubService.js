@@ -36,12 +36,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GitHubService = void 0;
 const exec = __importStar(require("@actions/exec"));
 const core = __importStar(require("@actions/core"));
+const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
+const os = __importStar(require("os"));
 class GitHubService {
     octokit;
     context;
+    worktreesDir;
     constructor(octokit, context) {
         this.octokit = octokit;
         this.context = context;
+        // Create a temporary directory for worktrees
+        this.worktreesDir = fs.mkdtempSync(path.join(os.tmpdir(), "flake-update-worktrees-"));
     }
     async createBranch(branchName, baseBranch) {
         try {
@@ -69,27 +75,46 @@ class GitHubService {
             catch {
                 // Branch doesn't exist, which is fine
             }
-            // Create new branch
+            // Create new branch on remote
             await this.octokit.rest.git.createRef({
                 owner: this.context.repo.owner,
                 repo: this.context.repo.repo,
                 ref: `refs/heads/${branchName}`,
                 sha: baseBranchData.commit.sha,
             });
-            // Checkout the new branch locally
-            await exec.exec("git", ["checkout", "-b", branchName]);
-            core.info(`Created and checked out branch: ${branchName}`);
+            // Create worktree for this branch
+            const worktreePath = path.join(this.worktreesDir, branchName);
+            // Remove worktree if it already exists
+            try {
+                await exec.exec("git", ["worktree", "remove", "--force", worktreePath], {
+                    ignoreReturnCode: true,
+                });
+            }
+            catch {
+                // Ignore errors, worktree might not exist
+            }
+            // Create new worktree from the current HEAD
+            await exec.exec("git", [
+                "worktree",
+                "add",
+                worktreePath,
+                "-b",
+                branchName,
+            ]);
+            core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
+            return worktreePath;
         }
         catch (error) {
             throw new Error(`Failed to create branch ${branchName}: ${error}`);
         }
     }
-    async commitChanges(branchName, commitMessage) {
+    async commitChanges(branchName, commitMessage, worktreePath) {
         try {
-            // Add all changes
-            await exec.exec("git", ["add", "."]);
+            // Add all changes in the worktree
+            await exec.exec("git", ["add", "."], { cwd: worktreePath });
             // Check if there are changes to commit
             const exitCode = await exec.exec("git", ["diff", "--cached", "--quiet"], {
+                cwd: worktreePath,
                 ignoreReturnCode: true,
                 listeners: {
                     stdout: () => { },
@@ -104,6 +129,7 @@ class GitHubService {
             }
             // Commit changes
             await exec.exec("git", ["commit", "-m", commitMessage], {
+                cwd: worktreePath,
                 env: {
                     ...process.env,
                     GIT_AUTHOR_NAME: "github-actions[bot]",
@@ -113,7 +139,9 @@ class GitHubService {
                 },
             });
             // Push to remote
-            await exec.exec("git", ["push", "origin", branchName]);
+            await exec.exec("git", ["push", "origin", branchName], {
+                cwd: worktreePath,
+            });
             core.info(`Committed and pushed changes to branch: ${branchName}`);
             return true;
         }
@@ -148,6 +176,28 @@ class GitHubService {
         }
         catch (error) {
             throw new Error(`Failed to create pull request: ${error}`);
+        }
+    }
+    async cleanupWorktree(worktreePath) {
+        try {
+            await exec.exec("git", ["worktree", "remove", "--force", worktreePath], {
+                ignoreReturnCode: true,
+            });
+            core.info(`Cleaned up worktree at ${worktreePath}`);
+        }
+        catch (error) {
+            core.warning(`Failed to cleanup worktree at ${worktreePath}: ${error}`);
+        }
+    }
+    async cleanupAllWorktrees() {
+        try {
+            if (fs.existsSync(this.worktreesDir)) {
+                fs.rmSync(this.worktreesDir, { recursive: true });
+            }
+            core.info("Cleaned up all worktrees");
+        }
+        catch (error) {
+            core.warning(`Failed to cleanup worktrees directory: ${error}`);
         }
     }
 }

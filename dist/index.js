@@ -29992,27 +29992,33 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
                     else {
                         branchName = `update-${input}-${flake.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`;
                     }
-                    await githubService.createBranch(branchName, baseBranch);
-                    // Update the specific flake input
-                    await flakeService.updateFlakeInput(input, flake.filePath);
-                    // Commit changes with appropriate message
-                    const commitMessage = flake.filePath === 'flake.nix'
-                        ? `Update flake input: ${input}`
-                        : `Update flake input: ${input} in ${flake.filePath}`;
-                    const hasChanges = await githubService.commitChanges(branchName, commitMessage);
-                    if (hasChanges) {
-                        // Create pull request with appropriate title and body
-                        const prTitle = flake.filePath === 'flake.nix'
+                    const worktreePath = await githubService.createBranch(branchName, baseBranch);
+                    try {
+                        // Update the specific flake input in the worktree
+                        await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
+                        // Commit changes with appropriate message
+                        const commitMessage = flake.filePath === 'flake.nix'
                             ? `Update flake input: ${input}`
                             : `Update flake input: ${input} in ${flake.filePath}`;
-                        const prBody = flake.filePath === 'flake.nix'
-                            ? `This PR updates the flake input \`${input}\` to the latest version.`
-                            : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-                        await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody);
-                        core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+                        const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
+                        if (hasChanges) {
+                            // Create pull request with appropriate title and body
+                            const prTitle = flake.filePath === 'flake.nix'
+                                ? `Update flake input: ${input}`
+                                : `Update flake input: ${input} in ${flake.filePath}`;
+                            const prBody = flake.filePath === 'flake.nix'
+                                ? `This PR updates the flake input \`${input}\` to the latest version.`
+                                : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody);
+                            core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+                        }
+                        else {
+                            core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+                        }
                     }
-                    else {
-                        core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+                    finally {
+                        // Clean up the worktree
+                        await githubService.cleanupWorktree(worktreePath);
                     }
                 }
                 catch (error) {
@@ -30028,6 +30034,7 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
     }
 }
 async function run() {
+    let githubService;
     try {
         // Get inputs
         const githubToken = core.getInput('github-token', { required: true });
@@ -30052,11 +30059,17 @@ async function run() {
         const octokit = github.getOctokit(githubToken);
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
-        const githubService = new githubService_1.GitHubService(octokit, context);
+        githubService = new githubService_1.GitHubService(octokit, context);
         await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
     }
     catch (error) {
         core.setFailed(`Action failed: ${error}`);
+    }
+    finally {
+        // Clean up all worktrees at the end
+        if (githubService) {
+            await githubService.cleanupAllWorktrees();
+        }
     }
 }
 run();
@@ -30205,10 +30218,14 @@ class FlakeService {
             throw new Error(`Failed to parse flake inputs from ${flake.filePath}: ${error}`);
         }
     }
-    async updateFlakeInput(inputName, flakeFile) {
+    async updateFlakeInput(inputName, flakeFile, workDir) {
         try {
             core.info(`Updating flake input: ${inputName} in ${flakeFile}`);
-            const flakeDir = path.dirname(flakeFile);
+            // If workDir is provided, resolve the flake file relative to it
+            const absoluteFlakePath = workDir
+                ? path.join(workDir, flakeFile)
+                : flakeFile;
+            const flakeDir = path.dirname(absoluteFlakePath);
             // Use nix flake update to update specific input
             await exec.exec("nix", ["flake", "update", inputName], {
                 cwd: flakeDir,
@@ -30271,12 +30288,18 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GitHubService = void 0;
 const exec = __importStar(__nccwpck_require__(5236));
 const core = __importStar(__nccwpck_require__(7484));
+const path = __importStar(__nccwpck_require__(6928));
+const fs = __importStar(__nccwpck_require__(9896));
+const os = __importStar(__nccwpck_require__(857));
 class GitHubService {
     octokit;
     context;
+    worktreesDir;
     constructor(octokit, context) {
         this.octokit = octokit;
         this.context = context;
+        // Create a temporary directory for worktrees
+        this.worktreesDir = fs.mkdtempSync(path.join(os.tmpdir(), "flake-update-worktrees-"));
     }
     async createBranch(branchName, baseBranch) {
         try {
@@ -30304,27 +30327,46 @@ class GitHubService {
             catch {
                 // Branch doesn't exist, which is fine
             }
-            // Create new branch
+            // Create new branch on remote
             await this.octokit.rest.git.createRef({
                 owner: this.context.repo.owner,
                 repo: this.context.repo.repo,
                 ref: `refs/heads/${branchName}`,
                 sha: baseBranchData.commit.sha,
             });
-            // Checkout the new branch locally
-            await exec.exec("git", ["checkout", "-b", branchName]);
-            core.info(`Created and checked out branch: ${branchName}`);
+            // Create worktree for this branch
+            const worktreePath = path.join(this.worktreesDir, branchName);
+            // Remove worktree if it already exists
+            try {
+                await exec.exec("git", ["worktree", "remove", "--force", worktreePath], {
+                    ignoreReturnCode: true,
+                });
+            }
+            catch {
+                // Ignore errors, worktree might not exist
+            }
+            // Create new worktree from the current HEAD
+            await exec.exec("git", [
+                "worktree",
+                "add",
+                worktreePath,
+                "-b",
+                branchName,
+            ]);
+            core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
+            return worktreePath;
         }
         catch (error) {
             throw new Error(`Failed to create branch ${branchName}: ${error}`);
         }
     }
-    async commitChanges(branchName, commitMessage) {
+    async commitChanges(branchName, commitMessage, worktreePath) {
         try {
-            // Add all changes
-            await exec.exec("git", ["add", "."]);
+            // Add all changes in the worktree
+            await exec.exec("git", ["add", "."], { cwd: worktreePath });
             // Check if there are changes to commit
             const exitCode = await exec.exec("git", ["diff", "--cached", "--quiet"], {
+                cwd: worktreePath,
                 ignoreReturnCode: true,
                 listeners: {
                     stdout: () => { },
@@ -30339,6 +30381,7 @@ class GitHubService {
             }
             // Commit changes
             await exec.exec("git", ["commit", "-m", commitMessage], {
+                cwd: worktreePath,
                 env: {
                     ...process.env,
                     GIT_AUTHOR_NAME: "github-actions[bot]",
@@ -30348,7 +30391,9 @@ class GitHubService {
                 },
             });
             // Push to remote
-            await exec.exec("git", ["push", "origin", branchName]);
+            await exec.exec("git", ["push", "origin", branchName], {
+                cwd: worktreePath,
+            });
             core.info(`Committed and pushed changes to branch: ${branchName}`);
             return true;
         }
@@ -30383,6 +30428,28 @@ class GitHubService {
         }
         catch (error) {
             throw new Error(`Failed to create pull request: ${error}`);
+        }
+    }
+    async cleanupWorktree(worktreePath) {
+        try {
+            await exec.exec("git", ["worktree", "remove", "--force", worktreePath], {
+                ignoreReturnCode: true,
+            });
+            core.info(`Cleaned up worktree at ${worktreePath}`);
+        }
+        catch (error) {
+            core.warning(`Failed to cleanup worktree at ${worktreePath}: ${error}`);
+        }
+    }
+    async cleanupAllWorktrees() {
+        try {
+            if (fs.existsSync(this.worktreesDir)) {
+                fs.rmSync(this.worktreesDir, { recursive: true });
+            }
+            core.info("Cleaned up all worktrees");
+        }
+        catch (error) {
+            core.warning(`Failed to cleanup worktrees directory: ${error}`);
         }
     }
 }
