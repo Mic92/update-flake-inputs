@@ -80,7 +80,7 @@ describe('processFlakeUpdates Integration Tests', () => {
       await exec.exec('nix', ['flake', 'lock'], { cwd: tempDir });
       
       // Initialize git repo in temp directory
-      await exec.exec('git', ['init'], { cwd: tempDir });
+      await exec.exec('git', ['init', '-b', 'main'], { cwd: tempDir });
       await exec.exec('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir });
       await exec.exec('git', ['config', 'user.name', 'Test User'], { cwd: tempDir });
       await exec.exec('git', ['add', '.'], { cwd: tempDir });
@@ -161,7 +161,7 @@ describe('processFlakeUpdates Integration Tests', () => {
       remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'process-updates-remote-'));
       
       // Initialize bare git repo for the remote
-      await exec.exec('git', ['init', '--bare'], { cwd: remoteDir });
+      await exec.exec('git', ['init', '--bare', '-b', 'main'], { cwd: remoteDir });
       
       // Create a temporary directory for the working repo
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'process-updates-test-'));
@@ -186,7 +186,7 @@ describe('processFlakeUpdates Integration Tests', () => {
       );
       
       // Initialize git repo in temp directory
-      await exec.exec('git', ['init'], { cwd: tempDir });
+      await exec.exec('git', ['init', '-b', 'main'], { cwd: tempDir });
       await exec.exec('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir });
       await exec.exec('git', ['config', 'user.name', 'Test User'], { cwd: tempDir });
       await exec.exec('git', ['add', '.'], { cwd: tempDir });
