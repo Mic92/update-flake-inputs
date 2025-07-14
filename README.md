@@ -135,7 +135,6 @@ The GitHub App needs the following permissions:
 3. Build the action:
    ```bash
    npm run build
-   npm run package
    ```
 
 ### Testing
