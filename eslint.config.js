@@ -12,6 +12,13 @@ export default [
         ecmaVersion: 2023,
         sourceType: 'module',
       },
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': tseslint,
