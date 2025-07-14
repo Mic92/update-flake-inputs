@@ -89,30 +89,25 @@ class GitHubService {
             // Add all changes
             await exec.exec("git", ["add", "."]);
             // Check if there are changes to commit
-            let hasChanges = false;
-            await exec
-                .exec("git", ["diff", "--cached", "--quiet"], {
+            const exitCode = await exec.exec("git", ["diff", "--cached", "--quiet"], {
                 ignoreReturnCode: true,
                 listeners: {
                     stdout: () => { },
                     stderr: () => { },
                 },
-            })
-                .then(() => {
-                hasChanges = false;
-            })
-                .catch(() => {
-                hasChanges = true;
             });
+            // Exit code 0 = no changes, exit code 1 = has changes
+            const hasChanges = exitCode !== 0;
             if (!hasChanges) {
                 core.info("No changes to commit");
-                return;
+                return false;
             }
             // Commit changes
             await exec.exec("git", ["commit", "-m", commitMessage]);
             // Push to remote
             await exec.exec("git", ["push", "origin", branchName]);
             core.info(`Committed and pushed changes to branch: ${branchName}`);
+            return true;
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);

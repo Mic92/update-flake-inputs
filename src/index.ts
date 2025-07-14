@@ -4,34 +4,12 @@ import * as exec from '@actions/exec';
 import { FlakeService, Flake } from './services/flakeService';
 import { GitHubService } from './services/githubService';
 
-async function run(): Promise<void> {
-  try {
-    // Get inputs
-    const githubToken = core.getInput('github-token', { required: true });
-    const excludePatterns = core.getInput('exclude-patterns') || '';
-    
-    // Auto-detect the current branch
-    let baseBranch = 'main'; // fallback
-    try {
-      let output = '';
-      await exec.exec('git', ['branch', '--show-current'], {
-        listeners: {
-          stdout: (data: Buffer) => {
-            output += data.toString();
-          }
-        }
-      });
-      baseBranch = output.trim();
-      core.info(`Auto-detected base branch: ${baseBranch}`);
-    } catch (error) {
-      core.warning(`Failed to auto-detect branch, using fallback 'main': ${error}`);
-    }
-
-    const octokit = github.getOctokit(githubToken);
-    const context = github.context;
-
-    const flakeService = new FlakeService();
-    const githubService = new GitHubService(octokit, context);
+export async function processFlakeUpdates(
+  flakeService: FlakeService,
+  githubService: GitHubService,
+  excludePatterns: string,
+  baseBranch: string
+): Promise<void> {
 
     // Discover all flake.nix files
     const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
@@ -70,24 +48,28 @@ async function run(): Promise<void> {
             const commitMessage = flake.filePath === 'flake.nix' 
               ? `Update flake input: ${input}`
               : `Update flake input: ${input} in ${flake.filePath}`;
-            await githubService.commitChanges(branchName, commitMessage);
+            const hasChanges = await githubService.commitChanges(branchName, commitMessage);
             
-            // Create pull request with appropriate title and body
-            const prTitle = flake.filePath === 'flake.nix'
-              ? `Update flake input: ${input}`
-              : `Update flake input: ${input} in ${flake.filePath}`;
-            const prBody = flake.filePath === 'flake.nix'
-              ? `This PR updates the flake input \`${input}\` to the latest version.`
-              : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-            
-            await githubService.createPullRequest(
-              branchName,
-              baseBranch,
-              prTitle,
-              prBody
-            );
-            
-            core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+            if (hasChanges) {
+              // Create pull request with appropriate title and body
+              const prTitle = flake.filePath === 'flake.nix'
+                ? `Update flake input: ${input}`
+                : `Update flake input: ${input} in ${flake.filePath}`;
+              const prBody = flake.filePath === 'flake.nix'
+                ? `This PR updates the flake input \`${input}\` to the latest version.`
+                : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+              
+              await githubService.createPullRequest(
+                branchName,
+                baseBranch,
+                prTitle,
+                prBody
+              );
+              
+              core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+            } else {
+              core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+            }
           } catch (error) {
             core.error(`Failed to process flake input ${input} in ${flake.filePath}: ${error}`);
             // Continue with other inputs even if one fails
@@ -98,6 +80,38 @@ async function run(): Promise<void> {
         // Continue with other flake files even if one fails
       }
     }
+}
+
+async function run(): Promise<void> {
+  try {
+    // Get inputs
+    const githubToken = core.getInput('github-token', { required: true });
+    const excludePatterns = core.getInput('exclude-patterns') || '';
+    
+    // Auto-detect the current branch
+    let baseBranch = 'main'; // fallback
+    try {
+      let output = '';
+      await exec.exec('git', ['branch', '--show-current'], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString();
+          }
+        }
+      });
+      baseBranch = output.trim();
+      core.info(`Auto-detected base branch: ${baseBranch}`);
+    } catch (error) {
+      core.warning(`Failed to auto-detect branch, using fallback 'main': ${error}`);
+    }
+
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+
+    const flakeService = new FlakeService();
+    const githubService = new GitHubService(octokit, context);
+
+    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
   }
