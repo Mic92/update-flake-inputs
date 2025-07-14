@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Check code formatting
+        run: |
+          npm run format
+          diff_files=$(git diff --name-only)
+          if [[ -n "$diff_files" ]]; then
+            echo "❌ Code is not properly formatted:"
+            echo ""
+            git diff
+            echo ""
+            echo "Files that need formatting:"
+            echo "$diff_files"
+            echo ""
+            echo "Please run 'npm run format' locally and commit the changes."
+            exit 1
+          fi
+          echo "✅ Code is properly formatted!"
+
+      - name: Build action
+        run: |
+          npm run build
+          npm run package
+
+      - name: Check for uncommitted changes
+        run: |
+          diff_files=$(git diff --name-only)
+          if [[ -n "$diff_files" ]]; then
+            echo "❌ Found uncommitted changes after build:"
+            echo ""
+            git diff
+            echo ""
+            echo "Files with changes:"
+            echo "$diff_files"
+            echo ""
+            echo "Please run 'npm run build && npm run package' locally and commit the changes."
+            exit 1
+          fi
+          echo "✅ No uncommitted changes found - built files are up-to-date!"
+
+      - name: Smoke test action
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          exclude-patterns: 'tests/**/flake.nix,examples/**/flake.nix'

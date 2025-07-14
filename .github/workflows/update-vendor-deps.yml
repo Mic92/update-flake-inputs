@@ -1,0 +1,52 @@
+name: Update Vendor Dependencies
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-vendor-deps:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run package
+
+      - name: Update vendor dependencies
+        run: |
+          ./scripts/update-vendor-deps.sh
+          # git push if we have a diff
+          if [[ -n $(git diff) ]]; then
+            git add package.json package-lock.json dist/
+            git config --global user.email "49699333+dependabot[bot]@users.noreply.github.com"
+            git config --global user.name "dependabot[bot]"
+            git commit -m "update vendor deps"
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              git push origin HEAD:${{ github.head_ref }}
+            else
+              git push origin HEAD
+            fi
+          fi

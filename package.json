@@ -1,0 +1,40 @@
+{
+  "name": "update-flake-inputs-action",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GitHub Action to create pull requests for each flake input",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "package": "ncc build src/index.ts -o dist",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "github-action",
+    "nix",
+    "flake",
+    "pull-request"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "@actions/exec": "^1.1.1",
+    "@actions/io": "^1.1.3",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/glob": "^8.1.0",
+    "@eslint/js": "^9.17.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}
