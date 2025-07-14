@@ -37,21 +37,21 @@ describe('FlakeService Integration Tests', () => {
       // Find the simple flake
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
       expect(simpleFlake).toBeDefined();
-      expect(simpleFlake!.inputs).toContain('nixpkgs');
+      expect(simpleFlake!.inputs).toContain('nixos-hardware');
       expect(simpleFlake!.inputs).toContain('flake-utils');
       expect(simpleFlake!.inputs.length).toBe(2);
       
       // Find the root subflake
       const rootSubflake = flakes.find(f => f.filePath === 'subflake/flake.nix');
       expect(rootSubflake).toBeDefined();
-      expect(rootSubflake!.inputs).toContain('nixpkgs');
+      expect(rootSubflake!.inputs).toContain('flake-utils');
       expect(rootSubflake!.inputs.length).toBe(1);
       
       // Find the nested subflake
       const nestedSubflake = flakes.find(f => f.filePath === 'subflake/sub/flake.nix');
       expect(nestedSubflake).toBeDefined();
-      expect(nestedSubflake!.inputs).toContain('nixpkgs');
-      expect(nestedSubflake!.inputs).toContain('home-manager');
+      expect(nestedSubflake!.inputs).toContain('flake-utils');
+      expect(nestedSubflake!.inputs).toContain('nixos-hardware');
       expect(nestedSubflake!.inputs.length).toBe(2);
       
       // Find the minimal flake
@@ -59,7 +59,7 @@ describe('FlakeService Integration Tests', () => {
       expect(minimalFlake).toBeDefined();
       expect(minimalFlake!.inputs).toContain('flake-utils');
       expect(minimalFlake!.inputs.length).toBe(1);
-    }, 30000);
+    }, 10000);
 
     it('should respect exclude patterns for files', async () => {
       const flakes = await flakeService.discoverFlakeFiles('subflake/**');
@@ -71,40 +71,40 @@ describe('FlakeService Integration Tests', () => {
       // Should still include simple/flake.nix
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
       expect(simpleFlake).toBeDefined();
-    }, 30000);
+    }, 10000);
 
     it('should respect exclude patterns for specific inputs', async () => {
-      const flakes = await flakeService.discoverFlakeFiles('**/flake.nix#nixpkgs');
+      const flakes = await flakeService.discoverFlakeFiles('**/flake.nix#flake-utils');
       
       // All flakes should still be discovered
       expect(flakes.length).toBeGreaterThanOrEqual(4);
       
-      // But nixpkgs should be excluded from all inputs
+      // But flake-utils should be excluded from all inputs
       for (const flake of flakes) {
-        expect(flake.inputs).not.toContain('nixpkgs');
+        expect(flake.inputs).not.toContain('flake-utils');
       }
       
       // Other inputs should still be present
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
-      expect(simpleFlake!.inputs).toContain('flake-utils');
+      expect(simpleFlake!.inputs).toContain('nixos-hardware');
       
       const nestedSubflake = flakes.find(f => f.filePath === 'subflake/sub/flake.nix');
-      expect(nestedSubflake!.inputs).toContain('home-manager');
-    }, 30000);
+      expect(nestedSubflake!.inputs).toContain('nixos-hardware');
+    }, 10000);
 
     it('should handle mixed exclude patterns', async () => {
-      const flakes = await flakeService.discoverFlakeFiles('simple/**,subflake/sub/flake.nix#home-manager');
+      const flakes = await flakeService.discoverFlakeFiles('simple/**,subflake/sub/flake.nix#nixos-hardware');
       
       // simple/flake.nix should be completely excluded
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
       expect(simpleFlake).toBeUndefined();
       
-      // subflake/sub/flake.nix should exist but without home-manager
+      // subflake/sub/flake.nix should exist but without nixos-hardware
       const nestedSubflake = flakes.find(f => f.filePath === 'subflake/sub/flake.nix');
       expect(nestedSubflake).toBeDefined();
-      expect(nestedSubflake!.inputs).toContain('nixpkgs');
-      expect(nestedSubflake!.inputs).not.toContain('home-manager');
-    }, 30000);
+      expect(nestedSubflake!.inputs).toContain('flake-utils');
+      expect(nestedSubflake!.inputs).not.toContain('nixos-hardware');
+    }, 10000);
   });
 
   describe('getFlakeInputs', () => {
@@ -112,25 +112,25 @@ describe('FlakeService Integration Tests', () => {
       const flake = { filePath: 'simple/flake.nix', inputs: [], excludedOutputs: [] };
       const inputs = await flakeService.getFlakeInputs(flake);
       
-      expect(inputs).toContain('nixpkgs');
+      expect(inputs).toContain('nixos-hardware');
       expect(inputs).toContain('flake-utils');
       expect(inputs.length).toBe(2);
-    }, 30000);
+    }, 10000);
 
     it('should correctly parse inputs from subflake', async () => {
       const flake = { filePath: 'subflake/sub/flake.nix', inputs: [], excludedOutputs: [] };
       const inputs = await flakeService.getFlakeInputs(flake);
       
-      expect(inputs).toContain('nixpkgs');
-      expect(inputs).toContain('home-manager');
+      expect(inputs).toContain('flake-utils');
+      expect(inputs).toContain('nixos-hardware');
       expect(inputs.length).toBe(2);
     });
 
     it('should exclude specified outputs', async () => {
-      const flake = { filePath: 'simple/flake.nix', inputs: [], excludedOutputs: ['nixpkgs'] };
+      const flake = { filePath: 'simple/flake.nix', inputs: [], excludedOutputs: ['nixos-hardware'] };
       const inputs = await flakeService.getFlakeInputs(flake);
       
-      expect(inputs).not.toContain('nixpkgs');
+      expect(inputs).not.toContain('nixos-hardware');
       expect(inputs).toContain('flake-utils');
       expect(inputs.length).toBe(1);
     });
@@ -209,7 +209,7 @@ describe('FlakeService Integration Tests', () => {
       
       // The revision should have changed from our old one
       expect(updatedLock.nodes['flake-utils'].locked.rev).not.toBe(originalFlakeUtilsRev);
-    }, 30000); // 30 second timeout
+    }, 10000); // 30 second timeout
 
     it('should handle updating a non-existent input gracefully', async () => {
       const testFlakePath = 'flake.nix';
@@ -228,6 +228,6 @@ describe('FlakeService Integration Tests', () => {
       // Should still have the same structure
       expect(lock.nodes['flake-utils']).toBeDefined();
       expect(lock.nodes['nonexistent']).toBeUndefined();
-    }, 30000); // 30 second timeout
+    }, 10000); // 30 second timeout
   });
 });
