@@ -6,7 +6,6 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && ncc build src/index.ts -o dist",
-    "package": "ncc build src/index.ts -o dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts"
