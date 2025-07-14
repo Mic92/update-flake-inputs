@@ -63,7 +63,7 @@ export class GitHubService {
   async commitChanges(
     branchName: string,
     commitMessage: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       // Add all changes
       await exec.exec("git", ["add", "."]);
@@ -87,7 +87,7 @@ export class GitHubService {
 
       if (!hasChanges) {
         core.info("No changes to commit");
-        return;
+        return false;
       }
 
       // Commit changes
@@ -97,6 +97,7 @@ export class GitHubService {
       await exec.exec("git", ["push", "origin", branchName]);
 
       core.info(`Committed and pushed changes to branch: ${branchName}`);
+      return true;
     } catch (error) {
       throw new Error(`Failed to commit changes: ${error}`);
     }

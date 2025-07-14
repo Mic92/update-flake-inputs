@@ -30023,16 +30023,21 @@ async function run() {
                         const commitMessage = flake.filePath === 'flake.nix'
                             ? `Update flake input: ${input}`
                             : `Update flake input: ${input} in ${flake.filePath}`;
-                        await githubService.commitChanges(branchName, commitMessage);
-                        // Create pull request with appropriate title and body
-                        const prTitle = flake.filePath === 'flake.nix'
-                            ? `Update flake input: ${input}`
-                            : `Update flake input: ${input} in ${flake.filePath}`;
-                        const prBody = flake.filePath === 'flake.nix'
-                            ? `This PR updates the flake input \`${input}\` to the latest version.`
-                            : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-                        await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody);
-                        core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+                        const hasChanges = await githubService.commitChanges(branchName, commitMessage);
+                        if (hasChanges) {
+                            // Create pull request with appropriate title and body
+                            const prTitle = flake.filePath === 'flake.nix'
+                                ? `Update flake input: ${input}`
+                                : `Update flake input: ${input} in ${flake.filePath}`;
+                            const prBody = flake.filePath === 'flake.nix'
+                                ? `This PR updates the flake input \`${input}\` to the latest version.`
+                                : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody);
+                            core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+                        }
+                        else {
+                            core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+                        }
                     }
                     catch (error) {
                         core.error(`Failed to process flake input ${input} in ${flake.filePath}: ${error}`);
@@ -30332,13 +30337,14 @@ class GitHubService {
             });
             if (!hasChanges) {
                 core.info("No changes to commit");
-                return;
+                return false;
             }
             // Commit changes
             await exec.exec("git", ["commit", "-m", commitMessage]);
             // Push to remote
             await exec.exec("git", ["push", "origin", branchName]);
             core.info(`Committed and pushed changes to branch: ${branchName}`);
+            return true;
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);

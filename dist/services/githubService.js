@@ -106,13 +106,14 @@ class GitHubService {
             });
             if (!hasChanges) {
                 core.info("No changes to commit");
-                return;
+                return false;
             }
             // Commit changes
             await exec.exec("git", ["commit", "-m", commitMessage]);
             // Push to remote
             await exec.exec("git", ["push", "origin", branchName]);
             core.info(`Committed and pushed changes to branch: ${branchName}`);
+            return true;
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);

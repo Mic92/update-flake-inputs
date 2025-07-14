@@ -70,24 +70,28 @@ async function run(): Promise<void> {
             const commitMessage = flake.filePath === 'flake.nix' 
               ? `Update flake input: ${input}`
               : `Update flake input: ${input} in ${flake.filePath}`;
-            await githubService.commitChanges(branchName, commitMessage);
+            const hasChanges = await githubService.commitChanges(branchName, commitMessage);
             
-            // Create pull request with appropriate title and body
-            const prTitle = flake.filePath === 'flake.nix'
-              ? `Update flake input: ${input}`
-              : `Update flake input: ${input} in ${flake.filePath}`;
-            const prBody = flake.filePath === 'flake.nix'
-              ? `This PR updates the flake input \`${input}\` to the latest version.`
-              : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-            
-            await githubService.createPullRequest(
-              branchName,
-              baseBranch,
-              prTitle,
-              prBody
-            );
-            
-            core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+            if (hasChanges) {
+              // Create pull request with appropriate title and body
+              const prTitle = flake.filePath === 'flake.nix'
+                ? `Update flake input: ${input}`
+                : `Update flake input: ${input} in ${flake.filePath}`;
+              const prBody = flake.filePath === 'flake.nix'
+                ? `This PR updates the flake input \`${input}\` to the latest version.`
+                : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+              
+              await githubService.createPullRequest(
+                branchName,
+                baseBranch,
+                prTitle,
+                prBody
+              );
+              
+              core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+            } else {
+              core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+            }
           } catch (error) {
             core.error(`Failed to process flake input ${input} in ${flake.filePath}: ${error}`);
             // Continue with other inputs even if one fails
