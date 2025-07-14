@@ -44,7 +44,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Update flake inputs
-        uses: ./
+        uses: mic92/update-flake-inputs@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Optional: exclude specific files or inputs
@@ -96,7 +96,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Update flake inputs
-        uses: ./
+        uses: mic92/update-flake-inputs@main
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           # Optional: exclude specific files or inputs
