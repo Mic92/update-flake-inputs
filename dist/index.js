@@ -30120,6 +30120,7 @@ exports.FlakeService = exports.Flake = void 0;
 const exec = __importStar(__nccwpck_require__(5236));
 const core = __importStar(__nccwpck_require__(7484));
 const path = __importStar(__nccwpck_require__(6928));
+const fs = __importStar(__nccwpck_require__(9896));
 const glob = __importStar(__nccwpck_require__(1363));
 class Flake {
     filePath;
@@ -30157,6 +30158,12 @@ class FlakeService {
                     return false;
                 });
                 if (!shouldExcludeFile) {
+                    // Check if lock file exists
+                    const lockFilePath = await this.getFlakeLockPath(file);
+                    if (!fs.existsSync(lockFilePath)) {
+                        core.info(`Skipping ${file} - no lock file found at ${lockFilePath}`);
+                        continue;
+                    }
                     // Collect excluded outputs for this file
                     const excludedOutputs = excludeList
                         .filter((pattern) => {
