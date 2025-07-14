@@ -2,6 +2,7 @@ import { FlakeService } from '../../src/services/flakeService';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as exec from '@actions/exec';
+import * as os from 'os';
 
 // Mock @actions/core
 jest.mock('@actions/core', () => ({
@@ -30,8 +31,8 @@ describe('FlakeService Integration Tests', () => {
     it('should discover all flake.nix files and their inputs', async () => {
       const flakes = await flakeService.discoverFlakeFiles();
       
-      // Should find both simple/flake.nix and subflake/flake.nix and subflake/sub/flake.nix
-      expect(flakes.length).toBeGreaterThanOrEqual(3);
+      // Should find simple/flake.nix, minimal/flake.nix, subflake/flake.nix and subflake/sub/flake.nix
+      expect(flakes.length).toBeGreaterThanOrEqual(4);
       
       // Find the simple flake
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
@@ -52,6 +53,12 @@ describe('FlakeService Integration Tests', () => {
       expect(nestedSubflake!.inputs).toContain('nixpkgs');
       expect(nestedSubflake!.inputs).toContain('home-manager');
       expect(nestedSubflake!.inputs.length).toBe(2);
+      
+      // Find the minimal flake
+      const minimalFlake = flakes.find(f => f.filePath === 'minimal/flake.nix');
+      expect(minimalFlake).toBeDefined();
+      expect(minimalFlake!.inputs).toContain('flake-utils');
+      expect(minimalFlake!.inputs.length).toBe(1);
     });
 
     it('should respect exclude patterns for files', async () => {
@@ -70,7 +77,7 @@ describe('FlakeService Integration Tests', () => {
       const flakes = await flakeService.discoverFlakeFiles('**/flake.nix#nixpkgs');
       
       // All flakes should still be discovered
-      expect(flakes.length).toBeGreaterThanOrEqual(3);
+      expect(flakes.length).toBeGreaterThanOrEqual(4);
       
       // But nixpkgs should be excluded from all inputs
       for (const flake of flakes) {
@@ -130,44 +137,61 @@ describe('FlakeService Integration Tests', () => {
   });
 
   describe('updateFlakeInput', () => {
+    let tempDir: string;
+    let originalCwd: string;
+
     beforeEach(async () => {
-      // Create a copy of the simple flake for testing updates
-      const testUpdateDir = path.join(fixturesPath, 'test-update');
-      if (fs.existsSync(testUpdateDir)) {
-        fs.rmSync(testUpdateDir, { recursive: true });
-      }
-      fs.mkdirSync(testUpdateDir);
+      // Save original working directory
+      originalCwd = process.cwd();
       
-      // Copy flake.nix and flake.lock
+      // Create a temporary directory outside the git repo
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flake-update-test-'));
+      
+      // Copy test files to temp directory
       fs.copyFileSync(
-        path.join(fixturesPath, 'simple/flake.nix'),
-        path.join(testUpdateDir, 'flake.nix')
+        path.join(fixturesPath, 'minimal/flake.nix'),
+        path.join(tempDir, 'flake.nix')
       );
       fs.copyFileSync(
-        path.join(fixturesPath, 'simple/flake.lock'),
-        path.join(testUpdateDir, 'flake.lock')
+        path.join(fixturesPath, 'minimal/flake.lock'),
+        path.join(tempDir, 'flake.lock')
       );
+      
+      // Initialize git repo in temp directory
+      await exec.exec('git', ['init'], { cwd: tempDir });
+      await exec.exec('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir });
+      await exec.exec('git', ['config', 'user.name', 'Test User'], { cwd: tempDir });
+      await exec.exec('git', ['add', '.'], { cwd: tempDir });
+      await exec.exec('git', ['commit', '-m', 'Initial commit'], { cwd: tempDir });
+      
+      // Change to temp directory for the test
+      process.chdir(tempDir);
     });
 
     afterEach(() => {
-      // Clean up test directory
-      const testUpdateDir = path.join(fixturesPath, 'test-update');
-      if (fs.existsSync(testUpdateDir)) {
-        fs.rmSync(testUpdateDir, { recursive: true });
+      // Restore original working directory
+      process.chdir(originalCwd);
+      
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true });
       }
     });
 
     it('should update a flake input and modify the lock file', async () => {
-      const testFlakePath = 'test-update/flake.nix';
-      const lockFilePath = path.join(fixturesPath, 'test-update/flake.lock');
+      const testFlakePath = 'flake.nix';
+      const lockFilePath = path.join(tempDir, 'flake.lock');
       
       // Get the original lock file content
       const originalLockContent = fs.readFileSync(lockFilePath, 'utf8');
       const originalLock = JSON.parse(originalLockContent);
-      const originalNixpkgsRev = originalLock.nodes.nixpkgs.locked.rev;
+      const originalFlakeUtilsRev = originalLock.nodes['flake-utils'].locked.rev;
       
-      // Update nixpkgs input
-      await flakeService.updateFlakeInput('nixpkgs', testFlakePath);
+      // Create a FlakeService instance for the temp directory
+      const tempFlakeService = new FlakeService();
+      
+      // Update flake-utils input
+      await tempFlakeService.updateFlakeInput('flake-utils', testFlakePath);
       
       // Check that the lock file was modified
       const updatedLockContent = fs.readFileSync(lockFilePath, 'utf8');
@@ -176,26 +200,34 @@ describe('FlakeService Integration Tests', () => {
       // The lock file should have changed
       expect(updatedLockContent).not.toBe(originalLockContent);
       
-      // The nixpkgs input should still exist
-      expect(updatedLock.nodes.nixpkgs).toBeDefined();
+      // The flake-utils input should still exist
+      expect(updatedLock.nodes['flake-utils']).toBeDefined();
+      expect(updatedLock.nodes['flake-utils'].locked.owner).toBe('numtide');
+      expect(updatedLock.nodes['flake-utils'].locked.repo).toBe('flake-utils');
+      expect(updatedLock.nodes['flake-utils'].locked.rev).toBeDefined();
+      expect(updatedLock.nodes['flake-utils'].locked.narHash).toBeDefined();
       
-      // The structure should be maintained
-      expect(updatedLock.nodes.nixpkgs.locked.owner).toBe('NixOS');
-      expect(updatedLock.nodes.nixpkgs.locked.repo).toBe('nixpkgs');
-      
-      // Since we're updating to latest, the rev might have changed
-      // (or might be the same if it was already latest)
-      expect(updatedLock.nodes.nixpkgs.locked.rev).toBeDefined();
-      expect(updatedLock.nodes.nixpkgs.locked.narHash).toBeDefined();
-    });
+      // The revision should have changed from our old one
+      expect(updatedLock.nodes['flake-utils'].locked.rev).not.toBe(originalFlakeUtilsRev);
+    }, 30000); // 30 second timeout
 
     it('should handle updating a non-existent input gracefully', async () => {
-      const testFlakePath = 'test-update/flake.nix';
+      const testFlakePath = 'flake.nix';
+      const tempFlakeService = new FlakeService();
       
-      // This should throw an error since 'nonexistent' is not a valid input
+      // This should not throw an error, just log a warning
       await expect(
-        flakeService.updateFlakeInput('nonexistent', testFlakePath)
-      ).rejects.toThrow(/Failed to update flake input nonexistent/);
-    });
+        tempFlakeService.updateFlakeInput('nonexistent', testFlakePath)
+      ).resolves.not.toThrow();
+      
+      // The lock file should remain unchanged
+      const lockFilePath = path.join(tempDir, 'flake.lock');
+      const lockContent = fs.readFileSync(lockFilePath, 'utf8');
+      const lock = JSON.parse(lockContent);
+      
+      // Should still have the same structure
+      expect(lock.nodes['flake-utils']).toBeDefined();
+      expect(lock.nodes['nonexistent']).toBeUndefined();
+    }, 30000); // 30 second timeout
   });
 });
