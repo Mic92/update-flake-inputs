@@ -10,4 +10,3 @@ export declare class FlakeService {
     updateFlakeInput(inputName: string, flakeFile: string): Promise<void>;
     getFlakeLockPath(flakeFile: string): Promise<string>;
 }
-//# sourceMappingURL=flakeService.d.ts.map
