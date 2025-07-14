@@ -1,6 +1,7 @@
 import { FlakeService } from '../../src/services/flakeService';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as exec from '@actions/exec';
 
 // Mock @actions/core
 jest.mock('@actions/core', () => ({
@@ -125,6 +126,76 @@ describe('FlakeService Integration Tests', () => {
       expect(inputs).not.toContain('nixpkgs');
       expect(inputs).toContain('flake-utils');
       expect(inputs.length).toBe(1);
+    });
+  });
+
+  describe('updateFlakeInput', () => {
+    beforeEach(async () => {
+      // Create a copy of the simple flake for testing updates
+      const testUpdateDir = path.join(fixturesPath, 'test-update');
+      if (fs.existsSync(testUpdateDir)) {
+        fs.rmSync(testUpdateDir, { recursive: true });
+      }
+      fs.mkdirSync(testUpdateDir);
+      
+      // Copy flake.nix and flake.lock
+      fs.copyFileSync(
+        path.join(fixturesPath, 'simple/flake.nix'),
+        path.join(testUpdateDir, 'flake.nix')
+      );
+      fs.copyFileSync(
+        path.join(fixturesPath, 'simple/flake.lock'),
+        path.join(testUpdateDir, 'flake.lock')
+      );
+    });
+
+    afterEach(() => {
+      // Clean up test directory
+      const testUpdateDir = path.join(fixturesPath, 'test-update');
+      if (fs.existsSync(testUpdateDir)) {
+        fs.rmSync(testUpdateDir, { recursive: true });
+      }
+    });
+
+    it('should update a flake input and modify the lock file', async () => {
+      const testFlakePath = 'test-update/flake.nix';
+      const lockFilePath = path.join(fixturesPath, 'test-update/flake.lock');
+      
+      // Get the original lock file content
+      const originalLockContent = fs.readFileSync(lockFilePath, 'utf8');
+      const originalLock = JSON.parse(originalLockContent);
+      const originalNixpkgsRev = originalLock.nodes.nixpkgs.locked.rev;
+      
+      // Update nixpkgs input
+      await flakeService.updateFlakeInput('nixpkgs', testFlakePath);
+      
+      // Check that the lock file was modified
+      const updatedLockContent = fs.readFileSync(lockFilePath, 'utf8');
+      const updatedLock = JSON.parse(updatedLockContent);
+      
+      // The lock file should have changed
+      expect(updatedLockContent).not.toBe(originalLockContent);
+      
+      // The nixpkgs input should still exist
+      expect(updatedLock.nodes.nixpkgs).toBeDefined();
+      
+      // The structure should be maintained
+      expect(updatedLock.nodes.nixpkgs.locked.owner).toBe('NixOS');
+      expect(updatedLock.nodes.nixpkgs.locked.repo).toBe('nixpkgs');
+      
+      // Since we're updating to latest, the rev might have changed
+      // (or might be the same if it was already latest)
+      expect(updatedLock.nodes.nixpkgs.locked.rev).toBeDefined();
+      expect(updatedLock.nodes.nixpkgs.locked.narHash).toBeDefined();
+    });
+
+    it('should handle updating a non-existent input gracefully', async () => {
+      const testFlakePath = 'test-update/flake.nix';
+      
+      // This should throw an error since 'nonexistent' is not a valid input
+      await expect(
+        flakeService.updateFlakeInput('nonexistent', testFlakePath)
+      ).rejects.toThrow(/Failed to update flake input nonexistent/);
     });
   });
 });
