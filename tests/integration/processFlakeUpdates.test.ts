@@ -26,8 +26,8 @@ class TestGitHubService extends GitHubService {
   }> = [];
   public commitResults: Array<{ branchName: string; hasChanges: boolean }> = [];
 
-  async commitChanges(branchName: string, commitMessage: string): Promise<boolean> {
-    const hasChanges = await super.commitChanges(branchName, commitMessage);
+  async commitChanges(branchName: string, commitMessage: string, worktreePath: string): Promise<boolean> {
+    const hasChanges = await super.commitChanges(branchName, commitMessage, worktreePath);
     this.commitResults.push({ branchName, hasChanges });
     return hasChanges;
   }
@@ -143,11 +143,11 @@ describe('processFlakeUpdates Integration Tests', () => {
         'No changes detected for flake input: local-test in flake.nix - skipping PR creation'
       );
       
-      // Verify we're on the created branch
+      // With worktrees, we stay on the main branch
       const currentBranch = await exec.getExecOutput('git', ['branch', '--show-current']);
-      expect(currentBranch.stdout.trim()).toBe('update-local-test');
+      expect(currentBranch.stdout.trim()).toBe('main');
       
-      // Verify no new commits were made
+      // Verify no new commits were made on main
       const logOutput = await exec.getExecOutput('git', ['log', '--oneline']);
       const commits = logOutput.stdout.trim().split('\n');
       expect(commits).toHaveLength(1);
@@ -271,12 +271,12 @@ describe('processFlakeUpdates Integration Tests', () => {
         'Successfully created PR for flake input: flake-utils in flake.nix'
       );
       
-      // Verify we're on the created branch
+      // With worktrees, we stay on the main branch
       const currentBranch = await exec.getExecOutput('git', ['branch', '--show-current']);
-      expect(currentBranch.stdout.trim()).toBe('update-flake-utils');
+      expect(currentBranch.stdout.trim()).toBe('main');
       
-      // Verify a commit was made
-      const logOutput = await exec.getExecOutput('git', ['log', '--oneline']);
+      // Verify a commit was made on the update branch
+      const logOutput = await exec.getExecOutput('git', ['log', '--oneline', 'update-flake-utils']);
       const commits = logOutput.stdout.trim().split('\n');
       expect(commits).toHaveLength(2);
       expect(commits[0]).toContain('Update flake input: flake-utils');

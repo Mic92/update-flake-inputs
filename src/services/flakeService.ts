@@ -123,11 +123,19 @@ export class FlakeService {
     }
   }
 
-  async updateFlakeInput(inputName: string, flakeFile: string): Promise<void> {
+  async updateFlakeInput(
+    inputName: string,
+    flakeFile: string,
+    workDir?: string,
+  ): Promise<void> {
     try {
       core.info(`Updating flake input: ${inputName} in ${flakeFile}`);
 
-      const flakeDir = path.dirname(flakeFile);
+      // If workDir is provided, resolve the flake file relative to it
+      const absoluteFlakePath = workDir
+        ? path.join(workDir, flakeFile)
+        : flakeFile;
+      const flakeDir = path.dirname(absoluteFlakePath);
 
       // Use nix flake update to update specific input
       await exec.exec("nix", ["flake", "update", inputName], {

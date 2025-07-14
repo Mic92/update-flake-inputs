@@ -135,10 +135,14 @@ class FlakeService {
             throw new Error(`Failed to parse flake inputs from ${flake.filePath}: ${error}`);
         }
     }
-    async updateFlakeInput(inputName, flakeFile) {
+    async updateFlakeInput(inputName, flakeFile, workDir) {
         try {
             core.info(`Updating flake input: ${inputName} in ${flakeFile}`);
-            const flakeDir = path.dirname(flakeFile);
+            // If workDir is provided, resolve the flake file relative to it
+            const absoluteFlakePath = workDir
+                ? path.join(workDir, flakeFile)
+                : flakeFile;
+            const flakeDir = path.dirname(absoluteFlakePath);
             // Use nix flake update to update specific input
             await exec.exec("nix", ["flake", "update", inputName], {
                 cwd: flakeDir,

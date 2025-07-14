@@ -39,36 +39,41 @@ export async function processFlakeUpdates(
               branchName = `update-${input}-${flake.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`;
             }
             
-            await githubService.createBranch(branchName, baseBranch);
+            const worktreePath = await githubService.createBranch(branchName, baseBranch);
             
-            // Update the specific flake input
-            await flakeService.updateFlakeInput(input, flake.filePath);
-            
-            // Commit changes with appropriate message
-            const commitMessage = flake.filePath === 'flake.nix' 
-              ? `Update flake input: ${input}`
-              : `Update flake input: ${input} in ${flake.filePath}`;
-            const hasChanges = await githubService.commitChanges(branchName, commitMessage);
-            
-            if (hasChanges) {
-              // Create pull request with appropriate title and body
-              const prTitle = flake.filePath === 'flake.nix'
+            try {
+              // Update the specific flake input in the worktree
+              await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
+              
+              // Commit changes with appropriate message
+              const commitMessage = flake.filePath === 'flake.nix' 
                 ? `Update flake input: ${input}`
                 : `Update flake input: ${input} in ${flake.filePath}`;
-              const prBody = flake.filePath === 'flake.nix'
-                ? `This PR updates the flake input \`${input}\` to the latest version.`
-                : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+              const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
               
-              await githubService.createPullRequest(
-                branchName,
-                baseBranch,
-                prTitle,
-                prBody
-              );
-              
-              core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
-            } else {
-              core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+              if (hasChanges) {
+                // Create pull request with appropriate title and body
+                const prTitle = flake.filePath === 'flake.nix'
+                  ? `Update flake input: ${input}`
+                  : `Update flake input: ${input} in ${flake.filePath}`;
+                const prBody = flake.filePath === 'flake.nix'
+                  ? `This PR updates the flake input \`${input}\` to the latest version.`
+                  : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
+                
+                await githubService.createPullRequest(
+                  branchName,
+                  baseBranch,
+                  prTitle,
+                  prBody
+                );
+                
+                core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
+              } else {
+                core.info(`No changes detected for flake input: ${input} in ${flake.filePath} - skipping PR creation`);
+              }
+            } finally {
+              // Clean up the worktree
+              await githubService.cleanupWorktree(worktreePath);
             }
           } catch (error) {
             core.error(`Failed to process flake input ${input} in ${flake.filePath}: ${error}`);
@@ -83,6 +88,8 @@ export async function processFlakeUpdates(
 }
 
 async function run(): Promise<void> {
+  let githubService: GitHubService | undefined;
+  
   try {
     // Get inputs
     const githubToken = core.getInput('github-token', { required: true });
@@ -109,11 +116,16 @@ async function run(): Promise<void> {
     const context = github.context;
 
     const flakeService = new FlakeService();
-    const githubService = new GitHubService(octokit, context);
+    githubService = new GitHubService(octokit, context);
 
     await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
+  } finally {
+    // Clean up all worktrees at the end
+    if (githubService) {
+      await githubService.cleanupAllWorktrees();
+    }
   }
 }
 
