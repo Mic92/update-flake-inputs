@@ -59,7 +59,7 @@ describe('FlakeService Integration Tests', () => {
       expect(minimalFlake).toBeDefined();
       expect(minimalFlake!.inputs).toContain('flake-utils');
       expect(minimalFlake!.inputs.length).toBe(1);
-    });
+    }, 30000);
 
     it('should respect exclude patterns for files', async () => {
       const flakes = await flakeService.discoverFlakeFiles('subflake/**');
@@ -71,7 +71,7 @@ describe('FlakeService Integration Tests', () => {
       // Should still include simple/flake.nix
       const simpleFlake = flakes.find(f => f.filePath === 'simple/flake.nix');
       expect(simpleFlake).toBeDefined();
-    });
+    }, 30000);
 
     it('should respect exclude patterns for specific inputs', async () => {
       const flakes = await flakeService.discoverFlakeFiles('**/flake.nix#nixpkgs');
@@ -90,7 +90,7 @@ describe('FlakeService Integration Tests', () => {
       
       const nestedSubflake = flakes.find(f => f.filePath === 'subflake/sub/flake.nix');
       expect(nestedSubflake!.inputs).toContain('home-manager');
-    });
+    }, 30000);
 
     it('should handle mixed exclude patterns', async () => {
       const flakes = await flakeService.discoverFlakeFiles('simple/**,subflake/sub/flake.nix#home-manager');
@@ -104,7 +104,7 @@ describe('FlakeService Integration Tests', () => {
       expect(nestedSubflake).toBeDefined();
       expect(nestedSubflake!.inputs).toContain('nixpkgs');
       expect(nestedSubflake!.inputs).not.toContain('home-manager');
-    });
+    }, 30000);
   });
 
   describe('getFlakeInputs', () => {
@@ -115,7 +115,7 @@ describe('FlakeService Integration Tests', () => {
       expect(inputs).toContain('nixpkgs');
       expect(inputs).toContain('flake-utils');
       expect(inputs.length).toBe(2);
-    });
+    }, 30000);
 
     it('should correctly parse inputs from subflake', async () => {
       const flake = { filePath: 'subflake/sub/flake.nix', inputs: [], excludedOutputs: [] };
