@@ -53,7 +53,16 @@ jobs:
 
 ### Using with GitHub App Token
 
-To trigger CI workflows on the created pull requests, you need to use a GitHub App token instead of `GITHUB_TOKEN` (since `GITHUB_TOKEN` doesn't trigger workflows to prevent infinite loops):
+To trigger CI workflows on the created pull requests, you need to use a GitHub App token instead of `GITHUB_TOKEN` (since `GITHUB_TOKEN` doesn't trigger workflows to prevent infinite loops).
+
+#### 🚀 Easy GitHub App Setup
+
+**Use our web interface to create your GitHub App:**
+👉 **[Create GitHub App](https://mic92.github.io/update-flake-inputs/)**
+
+#### Manual Setup
+
+Alternatively, you can create the GitHub App manually:
 
 ```yaml
 name: Update Flake Inputs
