@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create GitHub App for Update Flake Inputs Action</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292f;
+            background-color: #ffffff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+        }
+
+        h1 {
+            color: #1f2328;
+            margin-bottom: 16px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .description {
+            color: #656d76;
+            font-size: 16px;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #1f2328;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="url"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d9e0;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1f2328;
+            background-color: #ffffff;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="url"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #0969da;
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #656d76;
+            margin-top: 4px;
+        }
+
+        .permissions-section {
+            background-color: #f6f8fa;
+            border: 1px solid #d1d9e0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .permissions-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1f2328;
+        }
+
+        .permission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e4e8;
+        }
+
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+
+        .permission-name {
+            font-weight: 500;
+            color: #1f2328;
+        }
+
+        .permission-access {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .btn {
+            background-color: #1f883d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #1a7f37;
+        }
+
+        .btn:disabled {
+            background-color: #8c959f;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: #f6f8fa;
+            color: #24292f;
+            border: 1px solid #d1d9e0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f3f4f6;
+        }
+
+        .steps {
+            background-color: #f6f8fa;
+            border: 1px solid #d1d9e0;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 32px;
+        }
+
+        .steps h3 {
+            color: #1f2328;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .step {
+            margin-bottom: 12px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .step::before {
+            content: counter(step-counter);
+            counter-increment: step-counter;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: #0969da;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .steps ol {
+            counter-reset: step-counter;
+            list-style: none;
+        }
+
+        .info-box {
+            background-color: #dbeafe;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Create GitHub App</h1>
+        <p class="description">
+            Create a GitHub App for the <strong>Update Flake Inputs</strong> action. This app will have the necessary permissions to create branches, commits, and pull requests for updating your Nix flake inputs.
+        </p>
+
+        <div class="info-box">
+            <h4>ℹ️ What is this for?</h4>
+            <p>The Update Flake Inputs GitHub Action needs a GitHub App token (instead of GITHUB_TOKEN) to trigger CI workflows on the created pull requests. This form helps you create that app with the correct permissions.</p>
+        </div>
+
+        <form id="appForm">
+            <div class="form-group">
+                <label for="appName">App Name *</label>
+                <input type="text" id="appName" name="appName" placeholder="e.g., My Flake Updater" required>
+                <div class="help-text">Choose a unique name for your GitHub App</div>
+            </div>
+
+            <div class="form-group">
+                <label for="appDescription">Description</label>
+                <textarea id="appDescription" name="appDescription" placeholder="Automatically updates Nix flake inputs">Automatically updates Nix flake inputs</textarea>
+                <div class="help-text">Brief description of what your app does</div>
+            </div>
+
+            <div class="form-group">
+                <label for="repository">Repository (username/repo)</label>
+                <input type="text" id="repository" name="repository" placeholder="e.g., octocat/Hello-World">
+                <div class="help-text">The repository where you'll use this action (optional but recommended)</div>
+            </div>
+
+            <div class="form-group">
+                <label for="appUrl">Homepage URL</label>
+                <input type="url" id="appUrl" name="appUrl" placeholder="https://github.com/username/repository">
+                <div class="help-text">Link to your repository or project homepage</div>
+            </div>
+
+            <div class="form-group">
+                <label for="orgType">Create app for:</label>
+                <select id="orgType" name="orgType">
+                    <option value="user">Personal account</option>
+                    <option value="org">Organization</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="orgNameGroup" style="display: none;">
+                <label for="orgName">Organization name</label>
+                <input type="text" id="orgName" name="orgName" placeholder="e.g., my-organization">
+                <div class="help-text">Enter the organization name (without @)</div>
+            </div>
+
+            <div class="permissions-section">
+                <div class="permissions-title">📋 Required Permissions</div>
+                <div class="permission-item">
+                    <span class="permission-name">Contents</span>
+                    <span class="permission-access">Write</span>
+                </div>
+                <div class="permission-item">
+                    <span class="permission-name">Pull requests</span>
+                    <span class="permission-access">Write</span>
+                </div>
+                <div class="permission-item">
+                    <span class="permission-name">Metadata</span>
+                    <span class="permission-access">Read</span>
+                </div>
+                <div class="help-text" style="margin-top: 12px;">
+                    These permissions are automatically configured and required for the Update Flake Inputs action to work properly.
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn">Create GitHub App</button>
+                <button type="button" class="btn btn-secondary" onclick="fillSampleData()">Fill Sample Data</button>
+            </div>
+        </form>
+
+        <div class="steps">
+            <h3>📝 Next Steps</h3>
+            <ol>
+                <li class="step">Click "Create GitHub App" to open GitHub's app creation page</li>
+                <li class="step">Review and create your app on GitHub</li>
+                <li class="step">Install the app to your repository</li>
+                <li class="step">Copy the App ID and save it as <code>APP_ID</code> in your repository secrets</li>
+                <li class="step">Generate a private key and save it as <code>APP_PRIVATE_KEY</code> in your repository secrets</li>
+                <li class="step">Use the app in your workflow with <code>actions/create-github-app-token@v1</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Handle organization type selection
+        document.getElementById('orgType').addEventListener('change', function() {
+            const orgNameGroup = document.getElementById('orgNameGroup');
+            if (this.value === 'org') {
+                orgNameGroup.style.display = 'block';
+            } else {
+                orgNameGroup.style.display = 'none';
+            }
+        });
+
+        // Auto-fill URL based on repository
+        document.getElementById('repository').addEventListener('input', function() {
+            const repo = this.value.trim();
+            const urlField = document.getElementById('appUrl');
+            
+            if (repo && repo.includes('/') && !urlField.value) {
+                urlField.value = `https://github.com/${repo}`;
+            }
+        });
+
+        // Form submission
+        document.getElementById('appForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const appName = formData.get('appName');
+            const appDescription = formData.get('appDescription');
+            const repository = formData.get('repository');
+            const appUrl = formData.get('appUrl');
+            const orgType = formData.get('orgType');
+            const orgName = formData.get('orgName');
+            
+            // Build URL parameters
+            const params = new URLSearchParams();
+            params.append('name', appName);
+            params.append('description', appDescription || 'Automatically updates Nix flake inputs');
+            params.append('url', appUrl || '');
+            params.append('request_oauth_on_install', 'false');
+            params.append('webhook_active', 'false');
+            
+            // Add required permissions for Update Flake Inputs action
+            params.append('contents', 'write');
+            params.append('pull_requests', 'write');
+            params.append('metadata', 'read');
+            
+            // Build GitHub URL
+            let githubUrl;
+            if (orgType === 'org' && orgName) {
+                githubUrl = `https://github.com/organizations/${orgName}/settings/apps/new?${params.toString()}`;
+            } else {
+                githubUrl = `https://github.com/settings/apps/new?${params.toString()}`;
+            }
+            
+            // Open GitHub app creation page
+            window.open(githubUrl, '_blank');
+            
+            // Show next steps with repository-specific instructions
+            showNextSteps(appName, repository, orgType, orgName);
+        });
+
+        function fillSampleData() {
+            document.getElementById('appName').value = 'Flake Input Updater';
+            document.getElementById('appDescription').value = 'Automatically updates Nix flake inputs in my repositories';
+            document.getElementById('repository').value = 'octocat/Hello-World';
+            document.getElementById('appUrl').value = 'https://github.com/octocat/Hello-World';
+        }
+
+        function showNextSteps(appName, repository, orgType, orgName) {
+            const stepsContainer = document.querySelector('.steps');
+            const repoPath = repository || 'username/repository';
+            const isOrg = orgType === 'org' && orgName;
+            
+            const installUrl = isOrg 
+                ? `https://github.com/organizations/${orgName}/settings/apps/${appName}/installations`
+                : `https://github.com/settings/apps/${appName}/installations`;
+                
+            const appSettingsUrl = isOrg
+                ? `https://github.com/organizations/${orgName}/settings/apps/${appName}`
+                : `https://github.com/settings/apps/${appName}`;
+            
+            stepsContainer.innerHTML = `
+                <h3>🎉 App Creation Started!</h3>
+                <ol>
+                    <li class="step">Complete the app creation on GitHub (should be open in a new tab)</li>
+                    <li class="step">Install the app: <a href="${installUrl}" target="_blank">Install ${appName}</a></li>
+                    ${repository ? `
+                    <li class="step">Copy the App ID from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_ID</strong> in <a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a></li>
+                    <li class="step">Generate a private key from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_PRIVATE_KEY</strong> in <a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a></li>
+                    ` : `
+                    <li class="step">Copy the App ID from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_ID</strong> in your repository secrets</li>
+                    <li class="step">Generate a private key from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_PRIVATE_KEY</strong> in your repository secrets</li>
+                    `}
+                    <li class="step">Add the app token to your workflow file using <code>actions/create-github-app-token@v1</code></li>
+                </ol>
+                
+                <div style="margin-top: 20px; padding: 16px; background-color: #f6f8fa; border-radius: 6px;">
+                    <h4 style="margin-bottom: 8px;">📄 Example Workflow Usage:</h4>
+                    <pre style="background-color: #ffffff; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px;"><code>- name: Generate GitHub App Token
+  id: app-token
+  uses: actions/create-github-app-token@v1
+  with:
+    app-id: \${{ secrets.APP_ID }}
+    private-key: \${{ secrets.APP_PRIVATE_KEY }}
+
+- name: Update flake inputs
+  uses: your-action
+  with:
+    github-token: \${{ steps.app-token.outputs.token }}</code></pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
