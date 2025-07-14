@@ -40,6 +40,8 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const glob = __importStar(require("glob"));
 class FlakeFileInfo {
+    filePath;
+    excludedOutputs;
     constructor(filePath, excludedOutputs = []) {
         this.filePath = filePath;
         this.excludedOutputs = excludedOutputs;
@@ -47,25 +49,25 @@ class FlakeFileInfo {
 }
 exports.FlakeFileInfo = FlakeFileInfo;
 class FlakeService {
-    async discoverFlakeFiles(excludePatterns = '') {
+    async discoverFlakeFiles(excludePatterns = "") {
         try {
             // Find all flake.nix files in the repository
-            const allFlakeFiles = glob.sync('**/flake.nix', {
-                ignore: ['node_modules/**', '.git/**'],
+            const allFlakeFiles = glob.sync("**/flake.nix", {
+                ignore: ["node_modules/**", ".git/**"],
                 dot: false,
             });
             const excludeList = excludePatterns
-                ? excludePatterns.split(',').map((pattern) => pattern.trim())
+                ? excludePatterns.split(",").map((pattern) => pattern.trim())
                 : [];
-            core.info(`Exclude patterns: ${excludeList.join(', ')}`);
+            core.info(`Exclude patterns: ${excludeList.join(", ")}`);
             const flakeFileInfos = [];
             for (const file of allFlakeFiles) {
                 // Check if this file should be completely excluded
                 const shouldExcludeFile = excludeList.some((pattern) => {
-                    const [filePattern, outputName] = pattern.split('#');
+                    const [filePattern, outputName] = pattern.split("#");
                     // Only exclude the file if there's no output name specified
                     if (!outputName) {
-                        const regex = new RegExp(filePattern.replace(/\*/g, '.*').replace(/\?/g, '.'));
+                        const regex = new RegExp(filePattern.replace(/\*/g, ".*").replace(/\?/g, "."));
                         return regex.test(file);
                     }
                     return false;
@@ -74,14 +76,14 @@ class FlakeService {
                     // Collect excluded outputs for this file
                     const excludedOutputs = excludeList
                         .filter((pattern) => {
-                        const [filePattern, outputName] = pattern.split('#');
+                        const [filePattern, outputName] = pattern.split("#");
                         if (outputName) {
-                            const regex = new RegExp(filePattern.replace(/\*/g, '.*').replace(/\?/g, '.'));
+                            const regex = new RegExp(filePattern.replace(/\*/g, ".*").replace(/\?/g, "."));
                             return regex.test(file);
                         }
                         return false;
                     })
-                        .map((pattern) => pattern.split('#')[1]);
+                        .map((pattern) => pattern.split("#")[1]);
                     flakeFileInfos.push(new FlakeFileInfo(file, excludedOutputs));
                 }
             }
@@ -95,7 +97,7 @@ class FlakeService {
     async getFlakeInputs(flakeFileInfo) {
         try {
             // Read flake.nix file
-            const flakeContent = fs.readFileSync(flakeFileInfo.filePath, 'utf8');
+            const flakeContent = fs.readFileSync(flakeFileInfo.filePath, "utf8");
             // Parse inputs from flake.nix
             const inputsRegex = /inputs\s*=\s*{([^}]+)}/s;
             const match = flakeContent.match(inputsRegex);
@@ -106,10 +108,10 @@ class FlakeService {
             const inputsSection = match[1];
             const inputNames = [];
             // Extract input names (simplified parsing)
-            const lines = inputsSection.split('\n');
+            const lines = inputsSection.split("\n");
             for (const line of lines) {
                 const trimmed = line.trim();
-                if (trimmed && !trimmed.startsWith('#')) {
+                if (trimmed && !trimmed.startsWith("#")) {
                     const nameMatch = trimmed.match(/^(\w+)\s*=/);
                     if (nameMatch) {
                         inputNames.push(nameMatch[1]);
@@ -131,7 +133,7 @@ class FlakeService {
             core.info(`Updating flake input: ${inputName} in ${flakeFile}`);
             const flakeDir = path.dirname(flakeFile);
             // Use nix flake update to update specific input
-            await exec.exec('nix', ['flake', 'update', inputName], {
+            await exec.exec("nix", ["flake", "update", inputName], {
                 cwd: flakeDir,
             });
             core.info(`Successfully updated flake input: ${inputName} in ${flakeFile}`);
@@ -142,7 +144,7 @@ class FlakeService {
     }
     async getFlakeLockPath(flakeFile) {
         const flakeDir = path.dirname(flakeFile);
-        return path.join(flakeDir, 'flake.lock');
+        return path.join(flakeDir, "flake.lock");
     }
 }
 exports.FlakeService = FlakeService;

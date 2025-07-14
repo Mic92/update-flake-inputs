@@ -1,4 +1,4 @@
-import * as github from '@actions/github';
+import * as github from "@actions/github";
 export declare class GitHubService {
     private octokit;
     private context;

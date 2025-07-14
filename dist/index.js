@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
+const exec = __importStar(require("@actions/exec"));
 const flakeService_1 = require("./services/flakeService");
 const githubService_1 = require("./services/githubService");
 async function run() {
@@ -42,7 +43,23 @@ async function run() {
         // Get inputs
         const githubToken = core.getInput('github-token', { required: true });
         const excludePatterns = core.getInput('exclude-patterns') || '';
-        const baseBranch = core.getInput('base-branch') || 'main';
+        // Auto-detect the current branch
+        let baseBranch = 'main'; // fallback
+        try {
+            let output = '';
+            await exec.exec('git', ['branch', '--show-current'], {
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            });
+            baseBranch = output.trim();
+            core.info(`Auto-detected base branch: ${baseBranch}`);
+        }
+        catch (error) {
+            core.warning(`Failed to auto-detect branch, using fallback 'main': ${error}`);
+        }
         const octokit = github.getOctokit(githubToken);
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();

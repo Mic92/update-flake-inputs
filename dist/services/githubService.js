@@ -37,6 +37,8 @@ exports.GitHubService = void 0;
 const exec = __importStar(require("@actions/exec"));
 const core = __importStar(require("@actions/core"));
 class GitHubService {
+    octokit;
+    context;
     constructor(octokit, context) {
         this.octokit = octokit;
         this.context = context;
@@ -75,7 +77,7 @@ class GitHubService {
                 sha: baseBranchData.commit.sha,
             });
             // Checkout the new branch locally
-            await exec.exec('git', ['checkout', '-b', branchName]);
+            await exec.exec("git", ["checkout", "-b", branchName]);
             core.info(`Created and checked out branch: ${branchName}`);
         }
         catch (error) {
@@ -85,11 +87,11 @@ class GitHubService {
     async commitChanges(branchName, commitMessage) {
         try {
             // Add all changes
-            await exec.exec('git', ['add', '.']);
+            await exec.exec("git", ["add", "."]);
             // Check if there are changes to commit
             let hasChanges = false;
             await exec
-                .exec('git', ['diff', '--cached', '--quiet'], {
+                .exec("git", ["diff", "--cached", "--quiet"], {
                 ignoreReturnCode: true,
                 listeners: {
                     stdout: () => { },
@@ -103,13 +105,13 @@ class GitHubService {
                 hasChanges = true;
             });
             if (!hasChanges) {
-                core.info('No changes to commit');
+                core.info("No changes to commit");
                 return;
             }
             // Commit changes
-            await exec.exec('git', ['commit', '-m', commitMessage]);
+            await exec.exec("git", ["commit", "-m", commitMessage]);
             // Push to remote
-            await exec.exec('git', ['push', 'origin', branchName]);
+            await exec.exec("git", ["push", "origin", branchName]);
             core.info(`Committed and pushed changes to branch: ${branchName}`);
         }
         catch (error) {
@@ -124,7 +126,7 @@ class GitHubService {
                 repo: this.context.repo.repo,
                 head: `${this.context.repo.owner}:${branchName}`,
                 base: baseBranch,
-                state: 'open',
+                state: "open",
             });
             if (existingPRs.length > 0) {
                 core.info(`Pull request already exists for branch: ${branchName}`);
