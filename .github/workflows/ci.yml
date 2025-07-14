@@ -24,11 +24,19 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      - name: Install Nix
+        uses: cachix/install-nix-action@v24
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
       - name: Install dependencies
         run: npm ci
 
       - name: Lint code
         run: npm run lint
+
+      - name: Run tests
+        run: npm test
 
       - name: Check code formatting
         run: |
@@ -61,7 +69,7 @@ jobs:
             echo "Files with changes:"
             echo "$diff_files"
             echo ""
-            echo "Please run 'npm run build && npm run package' locally and commit the changes."
+            echo "Please run 'npm run build' locally and commit the changes."
             exit 1
           fi
           echo "✅ No uncommitted changes found - built files are up-to-date!"

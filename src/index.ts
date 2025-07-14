@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as exec from '@actions/exec';
-import { FlakeService, FlakeFileInfo } from './services/flakeService';
+import { FlakeService, Flake } from './services/flakeService';
 import { GitHubService } from './services/githubService';
 
 async function run(): Promise<void> {
@@ -34,52 +34,51 @@ async function run(): Promise<void> {
     const githubService = new GitHubService(octokit, context);
 
     // Discover all flake.nix files
-    const flakeFileInfos = await flakeService.discoverFlakeFiles(excludePatterns);
-    core.info(`Found ${flakeFileInfos.length} flake.nix files: ${flakeFileInfos.map((f: FlakeFileInfo) => f.filePath).join(', ')}`);
+    const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
+    core.info(`Found ${flakes.length} flake.nix files: ${flakes.map((f: Flake) => f.filePath).join(', ')}`);
 
     // Process each flake file
-    for (const flakeFileInfo of flakeFileInfos) {
+    for (const flake of flakes) {
       try {
-        core.info(`Processing flake file: ${flakeFileInfo.filePath}`);
-        if (flakeFileInfo.excludedOutputs.length > 0) {
-          core.info(`Excluded outputs for ${flakeFileInfo.filePath}: ${flakeFileInfo.excludedOutputs.join(', ')}`);
+        core.info(`Processing flake file: ${flake.filePath}`);
+        if (flake.excludedOutputs.length > 0) {
+          core.info(`Excluded outputs for ${flake.filePath}: ${flake.excludedOutputs.join(', ')}`);
         }
         
-        // Get flake inputs for this specific file
-        const flakeInputs = await flakeService.getFlakeInputs(flakeFileInfo);
-        core.info(`Found ${flakeInputs.length} inputs in ${flakeFileInfo.filePath}: ${flakeInputs.join(', ')}`);
+        // Inputs are already populated from discoverFlakeFiles
+        core.info(`Found ${flake.inputs.length} inputs in ${flake.filePath}: ${flake.inputs.join(', ')}`);
 
         // Create a pull request for each input
-        for (const input of flakeInputs) {
+        for (const input of flake.inputs) {
           try {
-            core.info(`Processing flake input: ${input} in ${flakeFileInfo.filePath}`);
+            core.info(`Processing flake input: ${input} in ${flake.filePath}`);
             
             // Create branch for this input - use simpler name for main flake.nix
             let branchName: string;
-            if (flakeFileInfo.filePath === 'flake.nix') {
+            if (flake.filePath === 'flake.nix') {
               branchName = `update-${input}`;
             } else {
-              branchName = `update-${input}-${flakeFileInfo.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`;
+              branchName = `update-${input}-${flake.filePath.replace(/[^a-zA-Z0-9]/g, '-')}`;
             }
             
             await githubService.createBranch(branchName, baseBranch);
             
             // Update the specific flake input
-            await flakeService.updateFlakeInput(input, flakeFileInfo.filePath);
+            await flakeService.updateFlakeInput(input, flake.filePath);
             
             // Commit changes with appropriate message
-            const commitMessage = flakeFileInfo.filePath === 'flake.nix' 
+            const commitMessage = flake.filePath === 'flake.nix' 
               ? `Update flake input: ${input}`
-              : `Update flake input: ${input} in ${flakeFileInfo.filePath}`;
+              : `Update flake input: ${input} in ${flake.filePath}`;
             await githubService.commitChanges(branchName, commitMessage);
             
             // Create pull request with appropriate title and body
-            const prTitle = flakeFileInfo.filePath === 'flake.nix'
+            const prTitle = flake.filePath === 'flake.nix'
               ? `Update flake input: ${input}`
-              : `Update flake input: ${input} in ${flakeFileInfo.filePath}`;
-            const prBody = flakeFileInfo.filePath === 'flake.nix'
+              : `Update flake input: ${input} in ${flake.filePath}`;
+            const prBody = flake.filePath === 'flake.nix'
               ? `This PR updates the flake input \`${input}\` to the latest version.`
-              : `This PR updates the flake input \`${input}\` in \`${flakeFileInfo.filePath}\` to the latest version.`;
+              : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
             
             await githubService.createPullRequest(
               branchName,
@@ -88,14 +87,14 @@ async function run(): Promise<void> {
               prBody
             );
             
-            core.info(`Successfully created PR for flake input: ${input} in ${flakeFileInfo.filePath}`);
+            core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
           } catch (error) {
-            core.error(`Failed to process flake input ${input} in ${flakeFileInfo.filePath}: ${error}`);
+            core.error(`Failed to process flake input ${input} in ${flake.filePath}: ${error}`);
             // Continue with other inputs even if one fails
           }
         }
       } catch (error) {
-        core.error(`Failed to process flake file ${flakeFileInfo.filePath}: ${error}`);
+        core.error(`Failed to process flake file ${flake.filePath}: ${error}`);
         // Continue with other flake files even if one fails
       }
     }

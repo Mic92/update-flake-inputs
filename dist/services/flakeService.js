@@ -33,21 +33,22 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FlakeService = exports.FlakeFileInfo = void 0;
+exports.FlakeService = exports.Flake = void 0;
 const exec = __importStar(require("@actions/exec"));
 const core = __importStar(require("@actions/core"));
-const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const glob = __importStar(require("glob"));
-class FlakeFileInfo {
+class Flake {
     filePath;
+    inputs;
     excludedOutputs;
-    constructor(filePath, excludedOutputs = []) {
+    constructor(filePath, inputs = [], excludedOutputs = []) {
         this.filePath = filePath;
+        this.inputs = inputs;
         this.excludedOutputs = excludedOutputs;
     }
 }
-exports.FlakeFileInfo = FlakeFileInfo;
+exports.Flake = Flake;
 class FlakeService {
     async discoverFlakeFiles(excludePatterns = "") {
         try {
@@ -60,7 +61,7 @@ class FlakeService {
                 ? excludePatterns.split(",").map((pattern) => pattern.trim())
                 : [];
             core.info(`Exclude patterns: ${excludeList.join(", ")}`);
-            const flakeFileInfos = [];
+            const flakes = [];
             for (const file of allFlakeFiles) {
                 // Check if this file should be completely excluded
                 const shouldExcludeFile = excludeList.some((pattern) => {
@@ -84,48 +85,54 @@ class FlakeService {
                         return false;
                     })
                         .map((pattern) => pattern.split("#")[1]);
-                    flakeFileInfos.push(new FlakeFileInfo(file, excludedOutputs));
+                    // Get inputs for this flake
+                    const tempFlake = new Flake(file, [], excludedOutputs);
+                    const inputs = await this.getFlakeInputs(tempFlake);
+                    flakes.push(new Flake(file, inputs, excludedOutputs));
                 }
             }
-            core.info(`Found ${flakeFileInfos.length} flake files after exclusions`);
-            return flakeFileInfos;
+            core.info(`Found ${flakes.length} flake files after exclusions`);
+            return flakes;
         }
         catch (error) {
             throw new Error(`Failed to discover flake files: ${error}`);
         }
     }
-    async getFlakeInputs(flakeFileInfo) {
+    async getFlakeInputs(flake) {
         try {
-            // Read flake.nix file
-            const flakeContent = fs.readFileSync(flakeFileInfo.filePath, "utf8");
-            // Parse inputs from flake.nix
-            const inputsRegex = /inputs\s*=\s*{([^}]+)}/s;
-            const match = flakeContent.match(inputsRegex);
-            if (!match) {
-                core.warning(`No inputs section found in ${flakeFileInfo.filePath}`);
-                return [];
+            const flakeDir = path.dirname(flake.filePath);
+            // Use nix flake metadata to get inputs
+            const output = await exec.getExecOutput("nix", ["flake", "metadata", "--json", "--no-write-lock-file"], {
+                cwd: flakeDir,
+                silent: true,
+            });
+            if (output.exitCode !== 0) {
+                throw new Error(`nix flake metadata failed for ${flake.filePath}: ${output.stderr}`);
             }
-            const inputsSection = match[1];
+            const metadata = JSON.parse(output.stdout);
             const inputNames = [];
-            // Extract input names (simplified parsing)
-            const lines = inputsSection.split("\n");
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed && !trimmed.startsWith("#")) {
-                    const nameMatch = trimmed.match(/^(\w+)\s*=/);
-                    if (nameMatch) {
-                        inputNames.push(nameMatch[1]);
+            // Extract input names from the locks section
+            if (metadata.locks && metadata.locks.nodes) {
+                for (const nodeName of Object.keys(metadata.locks.nodes)) {
+                    // Skip the root node
+                    if (nodeName === "root")
+                        continue;
+                    // Check if this is a direct input of root
+                    const rootNode = metadata.locks.nodes.root;
+                    if (rootNode && rootNode.inputs && rootNode.inputs[nodeName]) {
+                        inputNames.push(nodeName);
                     }
                 }
             }
+            core.info(`Found inputs in ${flake.filePath}: ${inputNames.join(", ")}`);
             // Filter out excluded outputs for this specific file
             const filteredInputs = inputNames.filter((inputName) => {
-                return !flakeFileInfo.excludedOutputs.includes(inputName);
+                return !flake.excludedOutputs.includes(inputName);
             });
             return filteredInputs;
         }
         catch (error) {
-            throw new Error(`Failed to parse flake inputs from ${flakeFileInfo.filePath}: ${error}`);
+            throw new Error(`Failed to parse flake inputs from ${flake.filePath}: ${error}`);
         }
     }
     async updateFlakeInput(inputName, flakeFile) {

@@ -7,4 +7,3 @@ export declare class GitHubService {
     commitChanges(branchName: string, commitMessage: string): Promise<void>;
     createPullRequest(branchName: string, baseBranch: string, title: string, body: string): Promise<void>;
 }
-//# sourceMappingURL=githubService.d.ts.map
