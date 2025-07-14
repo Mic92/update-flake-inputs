@@ -12,9 +12,7 @@ export class FlakeFileInfo {
 }
 
 export class FlakeService {
-  async discoverFlakeFiles(
-    excludePatterns = "",
-  ): Promise<FlakeFileInfo[]> {
+  async discoverFlakeFiles(excludePatterns = ""): Promise<FlakeFileInfo[]> {
     try {
       // Find all flake.nix files in the repository
       const allFlakeFiles = glob.sync("**/flake.nix", {
