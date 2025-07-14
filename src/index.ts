@@ -4,34 +4,12 @@ import * as exec from '@actions/exec';
 import { FlakeService, Flake } from './services/flakeService';
 import { GitHubService } from './services/githubService';
 
-async function run(): Promise<void> {
-  try {
-    // Get inputs
-    const githubToken = core.getInput('github-token', { required: true });
-    const excludePatterns = core.getInput('exclude-patterns') || '';
-    
-    // Auto-detect the current branch
-    let baseBranch = 'main'; // fallback
-    try {
-      let output = '';
-      await exec.exec('git', ['branch', '--show-current'], {
-        listeners: {
-          stdout: (data: Buffer) => {
-            output += data.toString();
-          }
-        }
-      });
-      baseBranch = output.trim();
-      core.info(`Auto-detected base branch: ${baseBranch}`);
-    } catch (error) {
-      core.warning(`Failed to auto-detect branch, using fallback 'main': ${error}`);
-    }
-
-    const octokit = github.getOctokit(githubToken);
-    const context = github.context;
-
-    const flakeService = new FlakeService();
-    const githubService = new GitHubService(octokit, context);
+export async function processFlakeUpdates(
+  flakeService: FlakeService,
+  githubService: GitHubService,
+  excludePatterns: string,
+  baseBranch: string
+): Promise<void> {
 
     // Discover all flake.nix files
     const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
@@ -102,6 +80,38 @@ async function run(): Promise<void> {
         // Continue with other flake files even if one fails
       }
     }
+}
+
+async function run(): Promise<void> {
+  try {
+    // Get inputs
+    const githubToken = core.getInput('github-token', { required: true });
+    const excludePatterns = core.getInput('exclude-patterns') || '';
+    
+    // Auto-detect the current branch
+    let baseBranch = 'main'; // fallback
+    try {
+      let output = '';
+      await exec.exec('git', ['branch', '--show-current'], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString();
+          }
+        }
+      });
+      baseBranch = output.trim();
+      core.info(`Auto-detected base branch: ${baseBranch}`);
+    } catch (error) {
+      core.warning(`Failed to auto-detect branch, using fallback 'main': ${error}`);
+    }
+
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+
+    const flakeService = new FlakeService();
+    const githubService = new GitHubService(octokit, context);
+
+    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
   }

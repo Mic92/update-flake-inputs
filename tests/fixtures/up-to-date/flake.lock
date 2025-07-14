@@ -1,0 +1,22 @@
+{
+  "nodes": {
+    "local-test": {
+      "locked": {
+        "path": "../local-flake-repo",
+        "type": "path"
+      },
+      "original": {
+        "path": "../local-flake-repo",
+        "type": "path"
+      },
+      "parent": []
+    },
+    "root": {
+      "inputs": {
+        "local-test": "local-test"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
