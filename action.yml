@@ -10,6 +10,38 @@ inputs:
     description: 'Comma-separated list of glob patterns to exclude flake.nix files'
     required: false
     default: ''
+  pr-labels:
+    description: 'Comma-separated list of labels to add to created pull requests'
+    required: false
+    default: 'dependencies'
+  automerge:
+    description: 'Enable automerge for created pull requests'
+    required: false
+    default: 'false'
+  git-author-name:
+    description: 'Git author name for commits'
+    required: false
+    default: 'github-actions[bot]'
+  git-author-email:
+    description: 'Git author email for commits'
+    required: false
+    default: '41898282+github-actions[bot]@users.noreply.github.com'
+  git-committer-name:
+    description: 'Git committer name for commits'
+    required: false
+    default: 'github-actions[bot]'
+  git-committer-email:
+    description: 'Git committer email for commits'
+    required: false
+    default: '41898282+github-actions[bot]@users.noreply.github.com'
+  signoff:
+    description: 'Add sign-off to commits'
+    required: false
+    default: 'true'
+  delete-branch:
+    description: 'Delete branch after pull request is merged'
+    required: false
+    default: 'false'
 
 runs:
   using: 'node20'

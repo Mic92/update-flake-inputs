@@ -1,6 +1,6 @@
 import { processFlakeUpdates } from "../../src/index";
 import { FlakeService } from "../../src/services/flakeService";
-import { GitHubService } from "../../src/services/githubService";
+import { GitHubService, GitConfig } from "../../src/services/githubService";
 import * as path from "path";
 import * as fs from "fs";
 import * as exec from "@actions/exec";
@@ -45,6 +45,8 @@ class TestGitHubService extends GitHubService {
     baseBranch: string,
     title: string,
     body: string,
+    labels: string[] = [],
+    enableAutomerge = false,
   ): Promise<void> {
     // Record the attempt but don't actually create a PR
     this.prCreationAttempts.push({ branchName, baseBranch, title, body });
@@ -135,15 +137,31 @@ describe("processFlakeUpdates Integration Tests", () => {
       };
 
       const flakeService = new FlakeService();
+      const gitConfig: GitConfig = {
+        authorName: "Test User",
+        authorEmail: "test@example.com",
+        committerName: "Test User",
+        committerEmail: "test@example.com",
+        signoff: true,
+      };
       const testGitHubService = new TestGitHubService(
         mockOctokit as any,
         {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
+        gitConfig,
       );
 
       // Process flake updates
-      await processFlakeUpdates(flakeService, testGitHubService, "", "main");
+      await processFlakeUpdates(
+        flakeService,
+        testGitHubService,
+        "",
+        "main",
+        [],
+        false,
+        true,
+      );
 
       // Verify NO pull request creation was attempted
       expect(testGitHubService.prCreationAttempts).toHaveLength(0);
@@ -273,15 +291,31 @@ describe("processFlakeUpdates Integration Tests", () => {
       };
 
       const flakeService = new FlakeService();
+      const gitConfig: GitConfig = {
+        authorName: "Test User",
+        authorEmail: "test@example.com",
+        committerName: "Test User",
+        committerEmail: "test@example.com",
+        signoff: true,
+      };
       const testGitHubService = new TestGitHubService(
         mockOctokit as any,
         {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
+        gitConfig,
       );
 
       // Process flake updates
-      await processFlakeUpdates(flakeService, testGitHubService, "", "main");
+      await processFlakeUpdates(
+        flakeService,
+        testGitHubService,
+        "",
+        "main",
+        [],
+        false,
+        true,
+      );
 
       // Verify pull request creation was attempted
       expect(testGitHubService.prCreationAttempts).toHaveLength(1);

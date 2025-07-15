@@ -49,6 +49,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Optional: exclude specific files or inputs
           # exclude-patterns: 'tests/**/flake.nix,examples/**/flake.nix#home-manager'
+          # Optional: add custom labels (default: 'dependencies')
+          # pr-labels: 'dependencies,automated'
+          # Optional: enable auto-merge (default: false)
+          # automerge: 'true'
 ```
 
 ### Using with GitHub App Token
@@ -101,6 +105,10 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           # Optional: exclude specific files or inputs
           # exclude-patterns: 'tests/**/flake.nix,examples/**/flake.nix#home-manager'
+          # Optional: add custom labels (default: 'dependencies')
+          # pr-labels: 'dependencies,automated'
+          # Optional: enable auto-merge (default: false)
+          # automerge: 'true'
 ```
 
 The GitHub App needs the following permissions:
@@ -115,6 +123,14 @@ The GitHub App needs the following permissions:
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for creating pull requests | Yes | - |
 | `exclude-patterns` | Comma-separated list of glob patterns to exclude flake.nix files or specific inputs using `pattern#inputname` syntax | No | `''` |
+| `pr-labels` | Comma-separated list of labels to add to created pull requests (labels will be created if they don't exist) | No | `'dependencies'` |
+| `automerge` | Enable auto-merge for created pull requests (requires auto-merge to be enabled in repository settings) | No | `'false'` |
+| `delete-branch` | Delete branch after pull request is merged | No | `'true'` |
+| `signoff` | Add sign-off to commits | No | `'true'` |
+| `git-author-name` | Git author name for commits | No | `'github-actions[bot]'` |
+| `git-author-email` | Git author email for commits | No | `'41898282+github-actions[bot]@users.noreply.github.com'` |
+| `git-committer-name` | Git committer name for commits | No | `'github-actions[bot]'` |
+| `git-committer-email` | Git committer email for commits | No | `'41898282+github-actions[bot]@users.noreply.github.com'` |
 
 ## Development
 

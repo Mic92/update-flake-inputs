@@ -29967,7 +29967,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const exec = __importStar(__nccwpck_require__(5236));
 const flakeService_1 = __nccwpck_require__(9950);
 const githubService_1 = __nccwpck_require__(9922);
-async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch) {
+async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge) {
     // Discover all flake.nix files
     const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
     core.info(`Found ${flakes.length} flake.nix files: ${flakes.map((f) => f.filePath).join(', ')}`);
@@ -30009,7 +30009,7 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
                             const prBody = flake.filePath === 'flake.nix'
                                 ? `This PR updates the flake input \`${input}\` to the latest version.`
                                 : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody);
+                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody, labels, enableAutomerge, deleteBranchOnMerge);
                             core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
                         }
                         else {
@@ -30039,6 +30039,22 @@ async function run() {
         // Get inputs
         const githubToken = core.getInput('github-token', { required: true });
         const excludePatterns = core.getInput('exclude-patterns') || '';
+        const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
+        const enableAutomerge = core.getInput('automerge') === 'true';
+        const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
+        // Git configuration
+        const gitConfig = {
+            authorName: core.getInput('git-author-name') || 'github-actions[bot]',
+            authorEmail: core.getInput('git-author-email') || '41898282+github-actions[bot]@users.noreply.github.com',
+            committerName: core.getInput('git-committer-name') || 'github-actions[bot]',
+            committerEmail: core.getInput('git-committer-email') || '41898282+github-actions[bot]@users.noreply.github.com',
+            signoff: core.getInput('signoff') === 'true',
+        };
+        // Parse labels from comma-separated string
+        const labels = prLabelsInput
+            .split(',')
+            .map(label => label.trim())
+            .filter(label => label.length > 0);
         // Auto-detect the current branch
         let baseBranch = 'main'; // fallback
         try {
@@ -30059,8 +30075,8 @@ async function run() {
         const octokit = github.getOctokit(githubToken);
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
-        githubService = new githubService_1.GitHubService(octokit, context);
-        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
+        githubService = new githubService_1.GitHubService(octokit, context, gitConfig);
+        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge);
     }
     catch (error) {
         core.setFailed(`Action failed: ${error}`);
@@ -30302,9 +30318,11 @@ class GitHubService {
     octokit;
     context;
     worktreesDir;
-    constructor(octokit, context) {
+    gitConfig;
+    constructor(octokit, context, gitConfig) {
         this.octokit = octokit;
         this.context = context;
+        this.gitConfig = gitConfig;
         // Create a temporary directory for worktrees
         this.worktreesDir = fs.mkdtempSync(path.join(os.tmpdir(), "flake-update-worktrees-"));
     }
@@ -30386,15 +30404,20 @@ class GitHubService {
                 core.info("No changes to commit");
                 return false;
             }
+            // Build commit command
+            const commitArgs = ["commit", "-m", commitMessage];
+            if (this.gitConfig.signoff) {
+                commitArgs.push("--signoff");
+            }
             // Commit changes
-            await exec.exec("git", ["commit", "-m", commitMessage], {
+            await exec.exec("git", commitArgs, {
                 cwd: worktreePath,
                 env: {
                     ...process.env,
-                    GIT_AUTHOR_NAME: "github-actions[bot]",
-                    GIT_AUTHOR_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com",
-                    GIT_COMMITTER_NAME: "github-actions[bot]",
-                    GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com",
+                    GIT_AUTHOR_NAME: this.gitConfig.authorName,
+                    GIT_AUTHOR_EMAIL: this.gitConfig.authorEmail,
+                    GIT_COMMITTER_NAME: this.gitConfig.committerName,
+                    GIT_COMMITTER_EMAIL: this.gitConfig.committerEmail,
                 },
             });
             // Push to remote
@@ -30408,7 +30431,41 @@ class GitHubService {
             throw new Error(`Failed to commit changes: ${error}`);
         }
     }
-    async createPullRequest(branchName, baseBranch, title, body) {
+    async ensureLabelsExist(labels) {
+        for (const label of labels) {
+            try {
+                // Check if label exists
+                await this.octokit.rest.issues.getLabel({
+                    owner: this.context.repo.owner,
+                    repo: this.context.repo.repo,
+                    name: label,
+                });
+            }
+            catch (error) {
+                if (error instanceof Error &&
+                    "status" in error &&
+                    error.status === 404) {
+                    // Label doesn't exist, create it
+                    try {
+                        await this.octokit.rest.issues.createLabel({
+                            owner: this.context.repo.owner,
+                            repo: this.context.repo.repo,
+                            name: label,
+                            color: label === "dependencies" ? "0366d6" : "ededed",
+                            description: label === "dependencies"
+                                ? "Pull requests that update a dependency"
+                                : "",
+                        });
+                        core.info(`Created label: ${label}`);
+                    }
+                    catch (createError) {
+                        core.warning(`Failed to create label ${label}: ${createError}`);
+                    }
+                }
+            }
+        }
+    }
+    async createPullRequest(branchName, baseBranch, title, body, labels = [], enableAutomerge = false, deleteBranchOnMerge = true) {
         try {
             // Check if PR already exists
             const { data: existingPRs } = await this.octokit.rest.pulls.list({
@@ -30422,6 +30479,10 @@ class GitHubService {
                 core.info(`Pull request already exists for branch: ${branchName}`);
                 return;
             }
+            // Ensure labels exist before creating PR
+            if (labels.length > 0) {
+                await this.ensureLabelsExist(labels);
+            }
             // Create pull request
             const { data: pr } = await this.octokit.rest.pulls.create({
                 owner: this.context.repo.owner,
@@ -30432,6 +30493,64 @@ class GitHubService {
                 base: baseBranch,
             });
             core.info(`Created pull request #${pr.number}: ${pr.html_url}`);
+            // Add labels to the PR
+            if (labels.length > 0) {
+                try {
+                    await this.octokit.rest.issues.addLabels({
+                        owner: this.context.repo.owner,
+                        repo: this.context.repo.repo,
+                        issue_number: pr.number,
+                        labels: labels,
+                    });
+                    core.info(`Added labels to PR #${pr.number}: ${labels.join(", ")}`);
+                }
+                catch (error) {
+                    core.warning(`Failed to add labels to PR #${pr.number}: ${error}`);
+                }
+            }
+            // Enable automerge if requested (requires GraphQL API)
+            if (enableAutomerge) {
+                try {
+                    // GitHub only supports auto-merge through GraphQL API
+                    await this.octokit.graphql(`
+            mutation($pullRequestId: ID!) {
+              enablePullRequestAutoMerge(input: {
+                pullRequestId: $pullRequestId,
+                mergeMethod: MERGE
+              }) {
+                pullRequest {
+                  autoMergeRequest {
+                    enabledAt
+                  }
+                }
+              }
+            }
+          `, {
+                        pullRequestId: pr.node_id,
+                    });
+                    core.info(`Enabled automerge for PR #${pr.number}`);
+                }
+                catch (error) {
+                    core.warning(`Failed to enable automerge for PR #${pr.number}: ${error}`);
+                    core.warning(`Note: Auto-merge must be enabled in repository settings and the PR must meet all merge requirements`);
+                }
+            }
+            // Set delete branch on merge if needed
+            if (deleteBranchOnMerge) {
+                try {
+                    // Update PR to delete branch on merge
+                    await this.octokit.rest.pulls.update({
+                        owner: this.context.repo.owner,
+                        repo: this.context.repo.repo,
+                        pull_number: pr.number,
+                        maintainer_can_modify: true,
+                    });
+                    core.info(`Branch will be deleted when PR #${pr.number} is merged`);
+                }
+                catch (error) {
+                    core.warning(`Failed to set delete-branch-on-merge for PR #${pr.number}: ${error}`);
+                }
+            }
         }
         catch (error) {
             throw new Error(`Failed to create pull request: ${error}`);
