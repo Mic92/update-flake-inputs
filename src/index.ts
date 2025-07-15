@@ -2,13 +2,16 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as exec from '@actions/exec';
 import { FlakeService, Flake } from './services/flakeService';
-import { GitHubService } from './services/githubService';
+import { GitHubService, GitConfig } from './services/githubService';
 
 export async function processFlakeUpdates(
   flakeService: FlakeService,
   githubService: GitHubService,
   excludePatterns: string,
-  baseBranch: string
+  baseBranch: string,
+  labels: string[],
+  enableAutomerge: boolean,
+  deleteBranchOnMerge: boolean
 ): Promise<void> {
 
     // Discover all flake.nix files
@@ -64,7 +67,10 @@ export async function processFlakeUpdates(
                   branchName,
                   baseBranch,
                   prTitle,
-                  prBody
+                  prBody,
+                  labels,
+                  enableAutomerge,
+                  deleteBranchOnMerge
                 );
                 
                 core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
@@ -94,6 +100,24 @@ async function run(): Promise<void> {
     // Get inputs
     const githubToken = core.getInput('github-token', { required: true });
     const excludePatterns = core.getInput('exclude-patterns') || '';
+    const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
+    const enableAutomerge = core.getInput('automerge') === 'true';
+    const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
+    
+    // Git configuration
+    const gitConfig: GitConfig = {
+      authorName: core.getInput('git-author-name') || 'github-actions[bot]',
+      authorEmail: core.getInput('git-author-email') || '41898282+github-actions[bot]@users.noreply.github.com',
+      committerName: core.getInput('git-committer-name') || 'github-actions[bot]',
+      committerEmail: core.getInput('git-committer-email') || '41898282+github-actions[bot]@users.noreply.github.com',
+      signoff: core.getInput('signoff') === 'true',
+    };
+    
+    // Parse labels from comma-separated string
+    const labels = prLabelsInput
+      .split(',')
+      .map(label => label.trim())
+      .filter(label => label.length > 0);
     
     // Auto-detect the current branch
     let baseBranch = 'main'; // fallback
@@ -116,9 +140,9 @@ async function run(): Promise<void> {
     const context = github.context;
 
     const flakeService = new FlakeService();
-    githubService = new GitHubService(octokit, context);
+    githubService = new GitHubService(octokit, context, gitConfig);
 
-    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch);
+    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge);
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
   } finally {
