@@ -284,7 +284,7 @@ export class GitHubService {
     title: string,
     body: string,
     labels: string[] = [],
-    enableAutomerge = false,
+    enableAutoMerge = false,
     deleteBranchOnMerge = true,
   ): Promise<void> {
     try {
@@ -334,8 +334,8 @@ export class GitHubService {
         }
       }
 
-      // Enable automerge if requested
-      if (enableAutomerge) {
+      // Enable auto-merge if requested
+      if (enableAutoMerge) {
         await this.enableAutoMerge(pr.node_id, pr.number, pr.head.sha);
       }
 
