@@ -10,7 +10,7 @@ export async function processFlakeUpdates(
   excludePatterns: string,
   baseBranch: string,
   labels: string[],
-  enableAutomerge: boolean,
+  enableAutoMerge: boolean,
   deleteBranchOnMerge: boolean
 ): Promise<void> {
 
@@ -69,7 +69,7 @@ export async function processFlakeUpdates(
                   prTitle,
                   prBody,
                   labels,
-                  enableAutomerge,
+                  enableAutoMerge,
                   deleteBranchOnMerge
                 );
                 
@@ -101,7 +101,7 @@ async function run(): Promise<void> {
     const githubToken = core.getInput('github-token', { required: true });
     const excludePatterns = core.getInput('exclude-patterns') || '';
     const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
-    const enableAutomerge = core.getInput('automerge') === 'true';
+    const enableAutoMerge = core.getInput('auto-merge') === 'true';
     const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
     
     // Git configuration
@@ -142,7 +142,7 @@ async function run(): Promise<void> {
     const flakeService = new FlakeService();
     githubService = new GitHubService(octokit, context, gitConfig);
 
-    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge);
+    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
   } finally {

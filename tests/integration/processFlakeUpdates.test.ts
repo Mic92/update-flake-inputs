@@ -46,7 +46,7 @@ class TestGitHubService extends GitHubService {
     title: string,
     body: string,
     labels: string[] = [],
-    enableAutomerge = false,
+    enableAutoMerge = false,
   ): Promise<void> {
     // Record the attempt but don't actually create a PR
     this.prCreationAttempts.push({ branchName, baseBranch, title, body });

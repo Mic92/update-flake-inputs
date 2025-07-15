@@ -29967,7 +29967,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const exec = __importStar(__nccwpck_require__(5236));
 const flakeService_1 = __nccwpck_require__(9950);
 const githubService_1 = __nccwpck_require__(9922);
-async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge) {
+async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge) {
     // Discover all flake.nix files
     const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
     core.info(`Found ${flakes.length} flake.nix files: ${flakes.map((f) => f.filePath).join(', ')}`);
@@ -30009,7 +30009,7 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
                             const prBody = flake.filePath === 'flake.nix'
                                 ? `This PR updates the flake input \`${input}\` to the latest version.`
                                 : `This PR updates the flake input \`${input}\` in \`${flake.filePath}\` to the latest version.`;
-                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody, labels, enableAutomerge, deleteBranchOnMerge);
+                            await githubService.createPullRequest(branchName, baseBranch, prTitle, prBody, labels, enableAutoMerge, deleteBranchOnMerge);
                             core.info(`Successfully created PR for flake input: ${input} in ${flake.filePath}`);
                         }
                         else {
@@ -30040,7 +30040,7 @@ async function run() {
         const githubToken = core.getInput('github-token', { required: true });
         const excludePatterns = core.getInput('exclude-patterns') || '';
         const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
-        const enableAutomerge = core.getInput('automerge') === 'true';
+        const enableAutoMerge = core.getInput('auto-merge') === 'true';
         const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
         // Git configuration
         const gitConfig = {
@@ -30076,7 +30076,7 @@ async function run() {
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
         githubService = new githubService_1.GitHubService(octokit, context, gitConfig);
-        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutomerge, deleteBranchOnMerge);
+        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
     }
     catch (error) {
         core.setFailed(`Action failed: ${error}`);
@@ -30526,7 +30526,7 @@ class GitHubService {
             }
         }
     }
-    async createPullRequest(branchName, baseBranch, title, body, labels = [], enableAutomerge = false, deleteBranchOnMerge = true) {
+    async createPullRequest(branchName, baseBranch, title, body, labels = [], enableAutoMerge = false, deleteBranchOnMerge = true) {
         try {
             // Check if PR already exists
             const { data: existingPRs } = await this.octokit.rest.pulls.list({
@@ -30569,8 +30569,8 @@ class GitHubService {
                     core.warning(`Failed to add labels to PR #${pr.number}: ${error}`);
                 }
             }
-            // Enable automerge if requested
-            if (enableAutomerge) {
+            // Enable auto-merge if requested
+            if (enableAutoMerge) {
                 await this.enableAutoMerge(pr.node_id, pr.number, pr.head.sha);
             }
             // Set delete branch on merge if needed

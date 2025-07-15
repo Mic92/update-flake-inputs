@@ -14,8 +14,8 @@ inputs:
     description: 'Comma-separated list of labels to add to created pull requests'
     required: false
     default: 'dependencies'
-  automerge:
-    description: 'Enable automerge for created pull requests'
+  auto-merge:
+    description: 'Enable auto-merge for created pull requests'
     required: false
     default: 'false'
   git-author-name:
