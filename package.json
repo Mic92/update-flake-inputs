@@ -4,7 +4,7 @@
   "description": "GitHub Action to create pull requests for each flake input",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && ncc build src/index.ts -o dist",
+    "build": "rm -rf dist && ncc build src/index.ts -o dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts tests/**/*.ts",
