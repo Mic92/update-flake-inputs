@@ -196,6 +196,88 @@ export class GitHubService {
     }
   }
 
+  async enableAutoMerge(
+    pullRequestNodeId: string,
+    pullRequestNumber: number,
+    headSha: string,
+    mergeMethod: "MERGE" | "SQUASH" | "REBASE" = "MERGE",
+  ): Promise<boolean> {
+    try {
+      // First check if auto-merge is allowed on the repository
+      const { repository } = await this.octokit.graphql<{
+        repository: { autoMergeAllowed: boolean };
+      }>(
+        `
+        query ($owner: String!, $name: String!) {
+          repository(owner: $owner, name: $name) {
+            autoMergeAllowed
+          }
+        }
+        `,
+        { owner: this.context.repo.owner, name: this.context.repo.repo },
+      );
+
+      if (!repository.autoMergeAllowed) {
+        core.warning(
+          "Auto-merge is not enabled on the repository. Please enable it in repository settings.",
+        );
+        return false;
+      }
+
+      // Enable auto-merge with expectedHeadOid for thread safety
+      await this.octokit.graphql(
+        `
+        mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!, $expectedHeadOid: GitObjectID!) {
+          enablePullRequestAutoMerge(input: {
+            pullRequestId: $pullRequestId,
+            mergeMethod: $mergeMethod,
+            expectedHeadOid: $expectedHeadOid
+          }) {
+            pullRequest {
+              autoMergeRequest {
+                enabledAt
+              }
+            }
+          }
+        }
+        `,
+        {
+          pullRequestId: pullRequestNodeId,
+          mergeMethod: mergeMethod,
+          expectedHeadOid: headSha,
+        },
+      );
+
+      core.info(`Successfully enabled auto-merge for PR #${pullRequestNumber}`);
+      return true;
+    } catch (error) {
+      // If auto-merge fails, it might be because checks haven't started yet
+      // or the PR is already in a mergeable state
+      core.warning(`Failed to enable auto-merge: ${error}`);
+
+      // Try to merge directly if auto-merge fails
+      try {
+        core.info("Attempting direct merge as fallback...");
+        await this.octokit.rest.pulls.merge({
+          owner: this.context.repo.owner,
+          repo: this.context.repo.repo,
+          pull_number: pullRequestNumber,
+          merge_method: mergeMethod.toLowerCase() as
+            | "merge"
+            | "squash"
+            | "rebase",
+          sha: headSha,
+        });
+        core.info(`Successfully merged PR #${pullRequestNumber} directly`);
+        return true;
+      } catch (mergeError) {
+        // Direct merge also failed, likely because checks haven't passed yet
+        core.warning(`Direct merge also failed: ${mergeError}`);
+        return false;
+      }
+    }
+  }
+
   async createPullRequest(
     branchName: string,
     baseBranch: string,
@@ -252,38 +334,9 @@ export class GitHubService {
         }
       }
 
-      // Enable automerge if requested (requires GraphQL API)
+      // Enable automerge if requested
       if (enableAutomerge) {
-        try {
-          // GitHub only supports auto-merge through GraphQL API
-          await this.octokit.graphql(
-            `
-            mutation($pullRequestId: ID!) {
-              enablePullRequestAutoMerge(input: {
-                pullRequestId: $pullRequestId,
-                mergeMethod: MERGE
-              }) {
-                pullRequest {
-                  autoMergeRequest {
-                    enabledAt
-                  }
-                }
-              }
-            }
-          `,
-            {
-              pullRequestId: pr.node_id,
-            },
-          );
-          core.info(`Enabled automerge for PR #${pr.number}`);
-        } catch (error) {
-          core.warning(
-            `Failed to enable automerge for PR #${pr.number}: ${error}`,
-          );
-          core.warning(
-            `Note: Auto-merge must be enabled in repository settings and the PR must meet all merge requirements`,
-          );
-        }
+        await this.enableAutoMerge(pr.node_id, pr.number, pr.head.sha);
       }
 
       // Set delete branch on merge if needed

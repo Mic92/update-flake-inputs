@@ -15,6 +15,7 @@ export declare class GitHubService {
     createBranch(branchName: string, baseBranch: string): Promise<string>;
     commitChanges(branchName: string, commitMessage: string, worktreePath: string): Promise<boolean>;
     ensureLabelsExist(labels: string[]): Promise<void>;
+    enableAutoMerge(pullRequestNodeId: string, pullRequestNumber: number, headSha: string, mergeMethod?: "MERGE" | "SQUASH" | "REBASE"): Promise<boolean>;
     createPullRequest(branchName: string, baseBranch: string, title: string, body: string, labels?: string[], enableAutomerge?: boolean, deleteBranchOnMerge?: boolean): Promise<void>;
     cleanupWorktree(worktreePath: string): Promise<void>;
     cleanupAllWorktrees(): Promise<void>;
