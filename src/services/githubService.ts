@@ -149,7 +149,7 @@ export class GitHubService {
       });
 
       // Push to remote
-      await exec.exec("git", ["push", "origin", branchName], {
+      await exec.exec("git", ["push", "--force", "origin", branchName], {
         cwd: worktreePath,
       });
 
