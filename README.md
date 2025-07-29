@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
@@ -95,6 +96,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
