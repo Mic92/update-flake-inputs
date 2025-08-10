@@ -30249,8 +30249,16 @@ class FlakeService {
                 ? path.join(workDir, flakeFile)
                 : flakeFile;
             const flakeDir = path.dirname(absoluteFlakePath);
-            // Use nix flake update to update specific input
-            await exec.exec("nix", ["flake", "update", inputName], {
+            // Use nix flake update to update specific input.
+            // The shallow url is needed because we may not have th full history of the git repository.
+            const absoluteFlakeDir = path.resolve(flakeDir);
+            await exec.exec("nix", [
+                "flake",
+                "update",
+                "--flake",
+                `git+file://${absoluteFlakeDir}?shallow=1`,
+                inputName,
+            ], {
                 cwd: flakeDir,
             });
             core.info(`Successfully updated flake input: ${inputName} in ${flakeFile}`);
