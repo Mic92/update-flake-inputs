@@ -2,6 +2,18 @@
 
 A GitHub Action that automatically discovers all `flake.nix` files in your repository and creates pull requests for each Nix flake input update.
 
+## Quick Start
+
+**New users: Follow these 3 steps to get started**
+
+1. **Create a GitHub App** - Use our [web interface](https://mic92.github.io/update-flake-inputs/) to easily create a GitHub App with the correct permissions
+2. **Configure Secrets** - Save the App ID and private key as repository secrets (`APP_ID` and `APP_PRIVATE_KEY`)
+3. **Add Workflow File** - Create `.github/workflows/update-flake-inputs.yml` using the [example below](#using-with-github-app-token)
+
+**Why do I need a GitHub App?** To trigger CI workflows on the created pull requests, you need to use a GitHub App token instead of `GITHUB_TOKEN` (since `GITHUB_TOKEN` doesn't trigger workflows to prevent infinite loops).
+
+For a basic setup without triggering CI workflows, see [Basic Workflow File](#workflow-file).
+
 ## Features
 
 - Automatically discovers all `flake.nix` files in the repository
@@ -14,7 +26,9 @@ A GitHub Action that automatically discovers all `flake.nix` files in your repos
 
 ## Usage
 
-### Workflow File
+### Basic Workflow File (Without CI Triggers)
+
+This basic setup works but won't trigger CI workflows on the created pull requests. For most users, we recommend using the [GitHub App setup](#using-with-github-app-token) instead.
 
 Create a workflow file (e.g., `.github/workflows/update-flake-inputs.yml`):
 
@@ -55,18 +69,33 @@ jobs:
           # auto-merge: 'true'
 ```
 
-### Using with GitHub App Token
+### Using with GitHub App Token (Recommended)
+
+**This is the recommended setup for most users.** It allows CI workflows to run on the created pull requests.
 
 To trigger CI workflows on the created pull requests, you need to use a GitHub App token instead of `GITHUB_TOKEN` (since `GITHUB_TOKEN` doesn't trigger workflows to prevent infinite loops).
 
-#### 🚀 Easy GitHub App Setup
+#### Step 1: Create GitHub App
 
-**Use our web interface to create your GitHub App:**
-👉 **[Create GitHub App](https://mic92.github.io/update-flake-inputs/)**
+**🚀 Use our web interface (Easy):**
+👉 **[Create GitHub App](https://mic92.github.io/update-flake-inputs/)** - Follow the on-screen instructions
 
-#### Manual Setup
+The web interface will guide you through:
+1. Creating the GitHub App with correct permissions
+2. Installing it to your repository
+3. Configuring the secrets (Step 2 below)
 
-Alternatively, you can create the GitHub App manually:
+#### Step 2: Configure Repository Secrets
+
+After creating your GitHub App:
+
+1. Go to your app settings (link provided after creation)
+2. Copy the **App ID** and save it as `APP_ID` in your [repository secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+3. Generate a **private key** and save it as `APP_PRIVATE_KEY` in your repository secrets
+
+#### Step 3: Add Workflow File
+
+Create `.github/workflows/update-flake-inputs.yml` with the following content:
 
 ```yaml
 name: Update Flake Inputs
@@ -111,11 +140,40 @@ jobs:
           # auto-merge: 'true'
 ```
 
-The GitHub App needs the following permissions:
-- **Repository permissions:**
-  - Contents: Write (to create branches and commits)
-  - Pull requests: Write (to create pull requests)
-  - Metadata: Read (to access repository information)
+**That's it!** Your workflow is now set up. It will:
+- Run weekly on Sundays at 2 AM UTC
+- Can be triggered manually from the Actions tab
+- Create pull requests for each flake input update
+- Trigger CI workflows on those PRs (thanks to the GitHub App token)
+
+<details>
+<summary><b>Manual GitHub App Creation (Advanced)</b></summary>
+
+If you prefer not to use the web interface, you can create the GitHub App manually:
+
+1. Go to GitHub Settings > Developer settings > GitHub Apps > New GitHub App
+2. Fill in the required fields:
+   - **App name**: Choose a unique name
+   - **Homepage URL**: Your repository URL
+   - **Webhook**: Disable webhook (uncheck "Active")
+3. Set permissions:
+   - Repository permissions:
+     - Contents: Read & Write
+     - Pull requests: Read & Write
+     - Metadata: Read only (automatically set)
+4. Create the app and install it to your repository
+5. Follow [Step 2](#step-2-configure-repository-secrets) above to configure secrets
+
+</details>
+
+---
+
+### Required GitHub App Permissions
+
+The GitHub App needs the following repository permissions:
+- **Contents**: Write (to create branches and commits)
+- **Pull requests**: Write (to create pull requests)
+- **Metadata**: Read (to access repository information)
 
 ### Inputs
 
