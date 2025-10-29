@@ -277,6 +277,20 @@
             <p>The Update Flake Inputs GitHub Action needs a GitHub App token (instead of GITHUB_TOKEN) to trigger CI workflows on the created pull requests. This form helps you create that app with the correct permissions.</p>
         </div>
 
+        <div class="info-box" style="background-color: #fef3c7; border-color: #fbbf24;">
+            <h4 style="color: #92400e;">📋 Complete Setup Overview</h4>
+            <div style="color: #92400e; font-size: 14px; line-height: 1.6;">
+                <p style="margin-bottom: 8px;"><strong>This tool is Step 1 of a 3-step setup process:</strong></p>
+                <ol style="margin-left: 20px; margin-bottom: 8px;">
+                    <li><strong>Step 1: Create GitHub App</strong> (this page) - Generate a GitHub App with correct permissions</li>
+                    <li><strong>Step 2: Configure Secrets</strong> - Save APP_ID and APP_PRIVATE_KEY to your repository</li>
+                    <li><strong>Step 3: Add Workflow</strong> - Create the GitHub Action workflow file that uses the app</li>
+                </ol>
+                <p>After completing this form, follow the instructions shown below to complete steps 2 and 3.</p>
+                <p style="margin-top: 8px;"><a href="https://github.com/Mic92/update-flake-inputs#using-with-github-app-token" target="_blank" style="color: #92400e; text-decoration: underline;">📖 View complete setup instructions in README</a></p>
+            </div>
+        </div>
+
         <div class="info-box" style="background-color: #f0f9ff; border-color: #0ea5e9;">
             <h4 style="color: #0c4a6e;">💡 Pro Tip</h4>
             <p style="color: #0c4a6e;">Fill out the form and click "📋 Share Form" to get a URL you can share with others. The URL will contain all your form data so they can create their app with the same settings!</p>
@@ -336,14 +350,14 @@
         </form>
 
         <div class="steps">
-            <h3>📝 Next Steps</h3>
+            <h3>📝 What Happens After You Click "Create GitHub App"</h3>
             <ol>
-                <li class="step">Click "Create GitHub App" to open GitHub's app creation page</li>
-                <li class="step">Review and create your app on GitHub</li>
-                <li class="step">Install the app to your repository</li>
-                <li class="step">Copy the App ID and save it as <code>APP_ID</code> in your repository secrets</li>
-                <li class="step">Generate a private key and save it as <code>APP_PRIVATE_KEY</code> in your repository secrets</li>
-                <li class="step">Use the app in your workflow with <code>actions/create-github-app-token@v1</code></li>
+                <li class="step">GitHub will open in a new tab with the app creation form pre-filled</li>
+                <li class="step">Review and click "Create GitHub App" on that page</li>
+                <li class="step">Install the app to your repository (you'll see detailed links below after creation)</li>
+                <li class="step"><strong>Step 2: Configure Secrets</strong> - Copy the App ID and save it as <code>APP_ID</code> in your repository secrets</li>
+                <li class="step"><strong>Step 2 continued:</strong> Generate a private key and save it as <code>APP_PRIVATE_KEY</code> in your repository secrets</li>
+                <li class="step"><strong>Step 3: Add Workflow</strong> - Create a workflow file that uses <code>actions/create-github-app-token@v1</code> with your secrets (see example below)</li>
             </ol>
         </div>
     </div>
@@ -584,33 +598,59 @@
                 : `https://github.com/settings/apps/${appSlug}`;
             
             stepsContainer.innerHTML = `
-                <h3>🎉 App Creation Started!</h3>
+                <h3>🎉 Step 1 Complete! Now Continue with Steps 2 & 3</h3>
+                <div style="margin-bottom: 20px; padding: 12px; background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px;">
+                    <p style="color: #92400e; font-size: 14px; margin: 0;"><strong>⚠️ Important:</strong> Complete ALL steps below to finish the setup. The GitHub App alone won't work without steps 2 and 3!</p>
+                </div>
                 <ol>
-                    <li class="step">Complete the app creation on GitHub (should be open in a new tab)</li>
-                    <li class="step">Install the app: <a href="${installUrl}" target="_blank">Install ${appName}</a></li>
-                    ${repository ? `
-                    <li class="step">Copy the App ID from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_ID</strong> in <a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a></li>
-                    <li class="step">Generate a private key from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_PRIVATE_KEY</strong> in <a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a></li>
-                    ` : `
-                    <li class="step">Copy the App ID from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_ID</strong> in your repository secrets</li>
-                    <li class="step">Generate a private key from <a href="${appSettingsUrl}" target="_blank">app settings</a> and save it as <strong>APP_PRIVATE_KEY</strong> in your repository secrets</li>
-                    `}
-                    <li class="step">Add the app token to your workflow file using <code>actions/create-github-app-token@v1</code></li>
+                    <li class="step"><strong>Finish Step 1:</strong> Complete the app creation on GitHub (should be open in a new tab). Click "Create GitHub App" on that page.</li>
+                    <li class="step"><strong>Install the app:</strong> <a href="${installUrl}" target="_blank">Install ${appName}</a> to your repository</li>
+                    <li class="step"><strong>Step 2a - Get App ID:</strong> Copy the App ID from <a href="${appSettingsUrl}" target="_blank">app settings</a>${repository ? ` and save it as <strong>APP_ID</strong> in <a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a>` : ' and save it as <strong>APP_ID</strong> in your repository secrets'}</li>
+                    <li class="step"><strong>Step 2b - Generate Private Key:</strong> On the <a href="${appSettingsUrl}" target="_blank">app settings</a> page, scroll down to "Private keys" and click "Generate a private key". Save this as <strong>APP_PRIVATE_KEY</strong> in ${repository ? `<a href="https://github.com/${repoPath}/settings/secrets/actions" target="_blank">repository secrets</a>` : 'your repository secrets'}</li>
+                    <li class="step"><strong>Step 3 - Create Workflow:</strong> Create or update your workflow file (e.g., <code>.github/workflows/update-flake-inputs.yml</code>) using the example below</li>
                 </ol>
-                
-                <div style="margin-top: 20px; padding: 16px; background-color: #f6f8fa; border-radius: 6px;">
-                    <h4 style="margin-bottom: 8px;">📄 Example Workflow Usage:</h4>
-                    <pre style="background-color: #ffffff; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px;"><code>- name: Generate GitHub App Token
-  id: app-token
-  uses: actions/create-github-app-token@v1
-  with:
-    app-id: \${{ secrets.APP_ID }}
-    private-key: \${{ secrets.APP_PRIVATE_KEY }}
 
-- name: Update flake inputs
-  uses: mic92/update-flake-inputs@main
-  with:
-    github-token: \${{ steps.app-token.outputs.token }}</code></pre>
+                <div style="margin-top: 20px; padding: 16px; background-color: #f6f8fa; border-radius: 6px;">
+                    <h4 style="margin-bottom: 8px; color: #1f2328;">📄 Step 3: Complete Workflow File Example</h4>
+                    <p style="font-size: 12px; color: #656d76; margin-bottom: 12px;">Copy this into <code>.github/workflows/update-flake-inputs.yml</code> in your repository:</p>
+                    <pre style="background-color: #ffffff; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px;"><code>name: Update Flake Inputs
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays at 2 AM UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-flake-inputs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: \${{ secrets.APP_ID }}
+          private-key: \${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: \${{ steps.app-token.outputs.token }}
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Update flake inputs
+        uses: mic92/update-flake-inputs@main
+        with:
+          github-token: \${{ steps.app-token.outputs.token }}</code></pre>
+                </div>
+
+                <div style="margin-top: 16px; padding: 12px; background-color: #d1fae5; border: 1px solid #10b981; border-radius: 6px;">
+                    <p style="color: #065f46; font-size: 14px; margin: 0;"><strong>✅ Next:</strong> After completing all steps, the action will run on schedule or you can trigger it manually from the Actions tab!</p>
                 </div>
             `;
         }
