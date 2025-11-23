@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Check for uncommitted changes
+        run: |
+          diff_files=$(git diff --name-only)
+          if [[ -n "$diff_files" ]]; then
+            echo "❌ Found uncommitted changes after build:"
+            echo ""
+            git diff
+            echo ""
+            echo "Files with changes:"
+            echo "$diff_files"
+            echo ""
+            echo "Please ensure 'npm run build' has been run and committed before releasing."
+            exit 1
+          fi
+          echo "✅ No uncommitted changes found - built files are up-to-date!"
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Extract major version (e.g., v1 from v1.2.3)
+          MAJOR_VERSION=$(echo "$TAG" | sed -E 's/^v([0-9]+)\..*/v\1/')
+          echo "major=$MAJOR_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update major version tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          MAJOR_TAG="${{ steps.version.outputs.major }}"
+
+          # Delete the tag locally and remotely if it exists
+          git tag -d "$MAJOR_TAG" 2>/dev/null || true
+          git push origin ":refs/tags/$MAJOR_TAG" 2>/dev/null || true
+
+          # Create and push the new major version tag
+          git tag -a "$MAJOR_TAG" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "$MAJOR_TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --draft \
+            --title "Release ${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            --notes "## Usage
+
+          \`\`\`yaml
+          - name: Update flake inputs
+            uses: mic92/update-flake-inputs@${{ steps.version.outputs.major }}
+            with:
+              github-token: \${{ secrets.GITHUB_TOKEN }}
+          \`\`\`
+
+          See the [README](https://github.com/${{ github.repository }}#readme) for full documentation."
