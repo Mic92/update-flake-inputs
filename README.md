@@ -43,7 +43,7 @@ on:
 
 jobs:
   update-flake-inputs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       pull-requests: write
@@ -107,7 +107,7 @@ on:
 
 jobs:
   update-flake-inputs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       pull-requests: write
