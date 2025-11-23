@@ -84,7 +84,7 @@ jobs:
           - name: Update flake inputs
             uses: mic92/update-flake-inputs@${{ steps.version.outputs.major }}
             with:
-              github-token: \${{ secrets.GITHUB_TOKEN }}
+              github-token: \$\{{ secrets.GITHUB_TOKEN }}
           \`\`\`
 
           See the [README](https://github.com/${{ github.repository }}#readme) for full documentation."
