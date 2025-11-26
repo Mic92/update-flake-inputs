@@ -18,15 +18,18 @@ export class GitHubService {
   private context: typeof github.context;
   private worktreesDir: string;
   private gitConfig: GitConfig;
+  private githubToken: string;
 
   constructor(
     octokit: ReturnType<typeof github.getOctokit>,
     context: typeof github.context,
     gitConfig: GitConfig,
+    githubToken: string,
   ) {
     this.octokit = octokit;
     this.context = context;
     this.gitConfig = gitConfig;
+    this.githubToken = githubToken;
     // Create a temporary directory for worktrees
     this.worktreesDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "flake-update-worktrees-"),
@@ -94,6 +97,21 @@ export class GitHubService {
         "-b",
         branchName,
       ]);
+
+      // Configure git authentication in the worktree
+      const basicAuth = Buffer.from(
+        `x-access-token:${this.githubToken}`,
+      ).toString("base64");
+      await exec.exec(
+        "git",
+        [
+          "config",
+          "--local",
+          `http.https://github.com/.extraheader`,
+          `AUTHORIZATION: basic ${basicAuth}`,
+        ],
+        { cwd: worktreePath },
+      );
 
       core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
 

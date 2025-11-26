@@ -30075,7 +30075,7 @@ async function run() {
         const octokit = github.getOctokit(githubToken);
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
-        githubService = new githubService_1.GitHubService(octokit, context, gitConfig);
+        githubService = new githubService_1.GitHubService(octokit, context, gitConfig, githubToken);
         await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
     }
     catch (error) {
@@ -30327,10 +30327,12 @@ class GitHubService {
     context;
     worktreesDir;
     gitConfig;
-    constructor(octokit, context, gitConfig) {
+    githubToken;
+    constructor(octokit, context, gitConfig, githubToken) {
         this.octokit = octokit;
         this.context = context;
         this.gitConfig = gitConfig;
+        this.githubToken = githubToken;
         // Create a temporary directory for worktrees
         this.worktreesDir = fs.mkdtempSync(path.join(os.tmpdir(), "flake-update-worktrees-"));
     }
@@ -30386,6 +30388,14 @@ class GitHubService {
                 "-b",
                 branchName,
             ]);
+            // Configure git authentication in the worktree
+            const basicAuth = Buffer.from(`x-access-token:${this.githubToken}`).toString("base64");
+            await exec.exec("git", [
+                "config",
+                "--local",
+                `http.https://github.com/.extraheader`,
+                `AUTHORIZATION: basic ${basicAuth}`,
+            ], { cwd: worktreePath });
             core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
             return worktreePath;
         }

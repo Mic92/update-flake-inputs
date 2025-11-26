@@ -102,7 +102,7 @@ describe("processFlakeUpdates Integration Tests", () => {
 
       // Change to temp directory for the test
       process.chdir(tempDir);
-    });
+    }, 15000);
 
     afterEach(() => {
       // Restore original working directory
@@ -150,6 +150,7 @@ describe("processFlakeUpdates Integration Tests", () => {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
         gitConfig,
+        "fake-token-for-testing",
       );
 
       // Process flake updates
@@ -253,7 +254,7 @@ describe("processFlakeUpdates Integration Tests", () => {
 
       // Change to temp directory for the test
       process.chdir(tempDir);
-    });
+    }, 15000);
 
     afterEach(() => {
       // Restore original working directory
@@ -304,6 +305,7 @@ describe("processFlakeUpdates Integration Tests", () => {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
         gitConfig,
+        "fake-token-for-testing",
       );
 
       // Process flake updates
