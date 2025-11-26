@@ -55,7 +55,7 @@ fi
 
 # Update version in package.json (remove 'v' prefix for package.json)
 npm_version="${version#v}"
-sed -ie "s/\"version\": \".*\"/\"version\": \"${npm_version}\"/" package.json
+sed -i "s/\"version\": \".*\"/\"version\": \"${npm_version}\"/" package.json
 
 # Build the action to ensure dist is up-to-date
 npm run build
