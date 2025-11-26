@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -xeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 cd "$SCRIPT_DIR/.."
@@ -55,7 +55,7 @@ fi
 
 # Update version in package.json (remove 'v' prefix for package.json)
 npm_version="${version#v}"
-sed -i '' -e "s/\"version\": \".*\"/\"version\": \"${npm_version}\"/" package.json
+sed -ie "s/\"version\": \".*\"/\"version\": \"${npm_version}\"/" package.json
 
 # Build the action to ensure dist is up-to-date
 npm run build
