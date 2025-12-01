@@ -47,6 +47,8 @@ class TestGitHubService extends GitHubService {
     body: string,
     labels: string[] = [],
     enableAutoMerge = false,
+    autoMergeMethod?: "MERGE" | "SQUASH" | "REBASE",
+    deleteBranchOnMerge = true,
   ): Promise<void> {
     // Record the attempt but don't actually create a PR
     this.prCreationAttempts.push({ branchName, baseBranch, title, body });
@@ -160,6 +162,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         "main",
         [],
         false,
+        "MERGE",
         true,
       );
 
@@ -314,6 +317,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         "main",
         [],
         false,
+        "MERGE",
         true,
       );
 

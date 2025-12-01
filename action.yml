@@ -18,6 +18,10 @@ inputs:
     description: 'Enable auto-merge for created pull requests'
     required: false
     default: 'false'
+  auto-merge-method:
+    description: 'Merge method to use when auto-merge is enabled (MERGE, SQUASH, REBASE)'
+    required: false
+    default: 'MERGE'
   git-author-name:
     description: 'Git author name for commits'
     required: false
