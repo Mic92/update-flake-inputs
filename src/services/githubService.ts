@@ -218,7 +218,7 @@ export class GitHubService {
     pullRequestNodeId: string,
     pullRequestNumber: number,
     headSha: string,
-    mergeMethod: "MERGE" | "SQUASH" | "REBASE" = "MERGE",
+    mergeMethod: "MERGE" | "SQUASH" | "REBASE",
   ): Promise<boolean> {
     try {
       // First check if auto-merge is allowed on the repository
@@ -303,6 +303,7 @@ export class GitHubService {
     body: string,
     labels: string[] = [],
     enableAutoMerge = false,
+    autoMergeMethod?: "MERGE" | "SQUASH" | "REBASE",
     deleteBranchOnMerge = true,
   ): Promise<void> {
     try {
@@ -354,7 +355,17 @@ export class GitHubService {
 
       // Enable auto-merge if requested
       if (enableAutoMerge) {
-        await this.enableAutoMerge(pr.node_id, pr.number, pr.head.sha);
+        if (!autoMergeMethod) {
+          throw new Error(
+            "Auto-merge method must be provided when auto-merge is enabled.",
+          );
+        }
+        await this.enableAutoMerge(
+          pr.node_id,
+          pr.number,
+          pr.head.sha,
+          autoMergeMethod,
+        );
       }
 
       // Set delete branch on merge if needed
