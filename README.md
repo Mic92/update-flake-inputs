@@ -67,6 +67,8 @@ jobs:
           # pr-labels: 'dependencies,automated'
           # Optional: enable auto-merge (default: false)
           # auto-merge: 'true'
+          # Optional: choose merge method when auto-merge is enabled (default: MERGE)
+          # auto-merge-method: 'SQUASH'
 ```
 
 ### Using with GitHub App Token (Recommended)
@@ -138,6 +140,8 @@ jobs:
           # pr-labels: 'dependencies,automated'
           # Optional: enable auto-merge (default: false)
           # auto-merge: 'true'
+          # Optional: choose merge method when auto-merge is enabled (default: MERGE)
+          # auto-merge-method: 'SQUASH'
 ```
 
 **That's it!** Your workflow is now set up. It will:
@@ -183,6 +187,7 @@ The GitHub App needs the following repository permissions:
 | `exclude-patterns` | Comma-separated list of glob patterns to exclude flake.nix files or specific inputs using `pattern#inputname` syntax | No | `''` |
 | `pr-labels` | Comma-separated list of labels to add to created pull requests (labels will be created if they don't exist) | No | `'dependencies'` |
 | `auto-merge` | Enable auto-merge for created pull requests (requires auto-merge to be enabled in repository settings) | No | `'false'` |
+| `auto-merge-method` | Merge strategy used when auto-merge is enabled (`MERGE`, `SQUASH`, or `REBASE`) | No | `'MERGE'` |
 | `delete-branch` | Delete branch after pull request is merged | No | `'true'` |
 | `signoff` | Add sign-off to commits | No | `'true'` |
 | `git-author-name` | Git author name for commits | No | `'github-actions[bot]'` |
