@@ -140,7 +140,7 @@ async function run(): Promise<void> {
     const context = github.context;
 
     const flakeService = new FlakeService();
-    githubService = new GitHubService(octokit, context, gitConfig, githubToken);
+    githubService = new GitHubService(octokit, context, gitConfig);
 
     await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
   } catch (error) {

@@ -30075,7 +30075,7 @@ async function run() {
         const octokit = github.getOctokit(githubToken);
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
-        githubService = new githubService_1.GitHubService(octokit, context, gitConfig, githubToken);
+        githubService = new githubService_1.GitHubService(octokit, context, gitConfig);
         await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
     }
     catch (error) {
@@ -30327,35 +30327,15 @@ class GitHubService {
     context;
     worktreesDir;
     gitConfig;
-    githubToken;
-    authConfigured = false;
-    constructor(octokit, context, gitConfig, githubToken) {
+    constructor(octokit, context, gitConfig) {
         this.octokit = octokit;
         this.context = context;
         this.gitConfig = gitConfig;
-        this.githubToken = githubToken;
         // Create a temporary directory for worktrees
         this.worktreesDir = fs.mkdtempSync(path.join(os.tmpdir(), "flake-update-worktrees-"));
     }
-    async configureGitAuth() {
-        if (this.authConfigured)
-            return;
-        // Configure git authentication once, replacing any existing extraheader
-        // (e.g., from GitHub Actions checkout) to avoid duplicate Authorization headers
-        const basicAuth = Buffer.from(`x-access-token:${this.githubToken}`).toString("base64");
-        await exec.exec("git", [
-            "config",
-            "--local",
-            "--replace-all",
-            `http.https://github.com/.extraheader`,
-            `Authorization: basic ${basicAuth}`,
-        ]);
-        this.authConfigured = true;
-    }
     async createBranch(branchName, baseBranch) {
         try {
-            // Configure git auth once (replaces any existing extraheader from checkout)
-            await this.configureGitAuth();
             // Get the SHA of the base branch
             const { data: baseBranchData } = await this.octokit.rest.repos.getBranch({
                 owner: this.context.repo.owner,

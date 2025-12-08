@@ -11,10 +11,7 @@ export declare class GitHubService {
     private context;
     private worktreesDir;
     private gitConfig;
-    private githubToken;
-    private authConfigured;
-    constructor(octokit: ReturnType<typeof github.getOctokit>, context: typeof github.context, gitConfig: GitConfig, githubToken: string);
-    private configureGitAuth;
+    constructor(octokit: ReturnType<typeof github.getOctokit>, context: typeof github.context, gitConfig: GitConfig);
     createBranch(branchName: string, baseBranch: string): Promise<string>;
     commitChanges(branchName: string, commitMessage: string, worktreePath: string): Promise<boolean>;
     ensureLabelsExist(labels: string[]): Promise<void>;
