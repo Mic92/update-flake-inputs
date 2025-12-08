@@ -30389,12 +30389,19 @@ class GitHubService {
                 branchName,
             ]);
             // Configure git authentication in the worktree
+            // First unset any existing extraheader to avoid duplicate Authorization headers
+            await exec.exec("git", [
+                "config",
+                "--local",
+                "--unset-all",
+                `http.https://github.com/.extraheader`,
+            ], { cwd: worktreePath, ignoreReturnCode: true });
             const basicAuth = Buffer.from(`x-access-token:${this.githubToken}`).toString("base64");
             await exec.exec("git", [
                 "config",
                 "--local",
                 `http.https://github.com/.extraheader`,
-                `AUTHORIZATION: basic ${basicAuth}`,
+                `Authorization: basic ${basicAuth}`,
             ], { cwd: worktreePath });
             core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
             return worktreePath;
