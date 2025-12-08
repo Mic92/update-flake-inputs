@@ -4,6 +4,8 @@ import * as exec from '@actions/exec';
 import { FlakeService, Flake } from './services/flakeService';
 import { GitHubService, GitConfig } from './services/githubService';
 
+export type AutoMergeMethod = "MERGE" | "SQUASH" | "REBASE";
+
 export async function processFlakeUpdates(
   flakeService: FlakeService,
   githubService: GitHubService,
@@ -11,6 +13,7 @@ export async function processFlakeUpdates(
   baseBranch: string,
   labels: string[],
   enableAutoMerge: boolean,
+  autoMergeMethod: AutoMergeMethod,
   deleteBranchOnMerge: boolean
 ): Promise<void> {
 
@@ -70,6 +73,7 @@ export async function processFlakeUpdates(
                   prBody,
                   labels,
                   enableAutoMerge,
+                  autoMergeMethod,
                   deleteBranchOnMerge
                 );
                 
@@ -102,6 +106,15 @@ async function run(): Promise<void> {
     const excludePatterns = core.getInput('exclude-patterns') || '';
     const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
     const enableAutoMerge = core.getInput('auto-merge') === 'true';
+    const autoMergeMethod = (core.getInput('auto-merge-method') || 'MERGE').toUpperCase();
+    const isValidAutoMergeMethod = (value: string): value is AutoMergeMethod =>
+      value === 'MERGE' || value === 'SQUASH' || value === 'REBASE';
+
+    if (!isValidAutoMergeMethod(autoMergeMethod)) {
+      throw new Error(
+        `Invalid input for auto-merge-method: ${autoMergeMethod}. Expected one of MERGE, SQUASH, or REBASE.`,
+      );
+    }
     const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
     
     // Git configuration
@@ -142,7 +155,16 @@ async function run(): Promise<void> {
     const flakeService = new FlakeService();
     githubService = new GitHubService(octokit, context, gitConfig);
 
-    await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, deleteBranchOnMerge);
+    await processFlakeUpdates(
+      flakeService,
+      githubService,
+      excludePatterns,
+      baseBranch,
+      labels,
+      enableAutoMerge,
+      autoMergeMethod,
+      deleteBranchOnMerge
+    );
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);
   } finally {
