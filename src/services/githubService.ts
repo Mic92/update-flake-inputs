@@ -19,6 +19,7 @@ export class GitHubService {
   private worktreesDir: string;
   private gitConfig: GitConfig;
   private githubToken: string;
+  private authConfigured = false;
 
   constructor(
     octokit: ReturnType<typeof github.getOctokit>,
@@ -36,8 +37,30 @@ export class GitHubService {
     );
   }
 
+  private async configureGitAuth(): Promise<void> {
+    if (this.authConfigured) return;
+
+    // Configure git authentication once, replacing any existing extraheader
+    // (e.g., from GitHub Actions checkout) to avoid duplicate Authorization headers
+    const basicAuth = Buffer.from(
+      `x-access-token:${this.githubToken}`,
+    ).toString("base64");
+    await exec.exec("git", [
+      "config",
+      "--local",
+      "--replace-all",
+      `http.https://github.com/.extraheader`,
+      `Authorization: basic ${basicAuth}`,
+    ]);
+
+    this.authConfigured = true;
+  }
+
   async createBranch(branchName: string, baseBranch: string): Promise<string> {
     try {
+      // Configure git auth once (replaces any existing extraheader from checkout)
+      await this.configureGitAuth();
+
       // Get the SHA of the base branch
       const { data: baseBranchData } = await this.octokit.rest.repos.getBranch({
         owner: this.context.repo.owner,
@@ -97,33 +120,6 @@ export class GitHubService {
         "-b",
         branchName,
       ]);
-
-      // Configure git authentication in the worktree
-      // First unset any existing extraheader to avoid duplicate Authorization headers
-      await exec.exec(
-        "git",
-        [
-          "config",
-          "--local",
-          "--unset-all",
-          `http.https://github.com/.extraheader`,
-        ],
-        { cwd: worktreePath, ignoreReturnCode: true },
-      );
-
-      const basicAuth = Buffer.from(
-        `x-access-token:${this.githubToken}`,
-      ).toString("base64");
-      await exec.exec(
-        "git",
-        [
-          "config",
-          "--local",
-          `http.https://github.com/.extraheader`,
-          `Authorization: basic ${basicAuth}`,
-        ],
-        { cwd: worktreePath },
-      );
 
       core.info(`Created worktree for branch ${branchName} at ${worktreePath}`);
 
