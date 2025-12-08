@@ -150,7 +150,6 @@ describe("processFlakeUpdates Integration Tests", () => {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
         gitConfig,
-        "fake-token-for-testing",
       );
 
       // Process flake updates
@@ -305,7 +304,6 @@ describe("processFlakeUpdates Integration Tests", () => {
           repo: { owner: "test", repo: "test-repo" },
         } as any,
         gitConfig,
-        "fake-token-for-testing",
       );
 
       // Process flake updates
