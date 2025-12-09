@@ -42,6 +42,10 @@ inputs:
     description: 'Add sign-off to commits'
     required: false
     default: 'true'
+  commit-message:
+    description: 'Custom commit message template. Supports {{input}}, {{flake-file}}, and {{in}} (expands to " in <path>" for subdirectory flakes, empty for root) placeholders.'
+    required: false
+    default: 'Update flake input: {{input}}{{in}}'
   delete-branch:
     description: 'Delete branch after pull request is merged'
     required: false
