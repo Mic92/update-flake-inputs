@@ -1,6 +1,6 @@
 {
   "name": "update-flake-inputs-action",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "GitHub Action to create pull requests for each flake input",
   "main": "dist/index.js",
   "scripts": {
