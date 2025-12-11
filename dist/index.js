@@ -29967,7 +29967,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const exec = __importStar(__nccwpck_require__(5236));
 const flakeService_1 = __nccwpck_require__(9950);
 const githubService_1 = __nccwpck_require__(9922);
-async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, autoMergeMethod, deleteBranchOnMerge) {
+async function processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, autoMergeMethod, deleteBranchOnMerge, commitMessageTemplate) {
     // Discover all flake.nix files
     const flakes = await flakeService.discoverFlakeFiles(excludePatterns);
     core.info(`Found ${flakes.length} flake.nix files: ${flakes.map((f) => f.filePath).join(', ')}`);
@@ -29997,9 +29997,11 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
                         // Update the specific flake input in the worktree
                         await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
                         // Commit changes with appropriate message
-                        const commitMessage = flake.filePath === 'flake.nix'
-                            ? `Update flake input: ${input}`
-                            : `Update flake input: ${input} in ${flake.filePath}`;
+                        const inSuffix = flake.filePath === 'flake.nix' ? '' : ` in ${flake.filePath}`;
+                        const commitMessage = commitMessageTemplate
+                            .replace(/\{\{input\}\}/g, () => input)
+                            .replace(/\{\{flake-file\}\}/g, () => flake.filePath)
+                            .replace(/\{\{in\}\}/g, () => inSuffix);
                         const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
                         if (hasChanges) {
                             // Create pull request with appropriate title and body
@@ -30047,6 +30049,7 @@ async function run() {
             throw new Error(`Invalid input for auto-merge-method: ${autoMergeMethod}. Expected one of MERGE, SQUASH, or REBASE.`);
         }
         const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
+        const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}';
         // Git configuration
         const gitConfig = {
             authorName: core.getInput('git-author-name') || 'github-actions[bot]',
@@ -30081,7 +30084,7 @@ async function run() {
         const context = github.context;
         const flakeService = new flakeService_1.FlakeService();
         githubService = new githubService_1.GitHubService(octokit, context, gitConfig);
-        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, autoMergeMethod, deleteBranchOnMerge);
+        await processFlakeUpdates(flakeService, githubService, excludePatterns, baseBranch, labels, enableAutoMerge, autoMergeMethod, deleteBranchOnMerge, commitMessageTemplate);
     }
     catch (error) {
         core.setFailed(`Action failed: ${error}`);
@@ -30255,15 +30258,24 @@ class FlakeService {
                 : flakeFile;
             const flakeDir = path.dirname(absoluteFlakePath);
             // Use nix flake update to update specific input.
-            // The shallow url is needed because we may not have th full history of the git repository.
-            const absoluteFlakeDir = path.resolve(flakeDir);
-            await exec.exec("nix", [
-                "flake",
-                "update",
-                "--flake",
-                `git+file://${absoluteFlakeDir}?shallow=1`,
-                inputName,
-            ], {
+            // The shallow url is needed because we may not have the full history of the git repository.
+            // When the flake is in a subdirectory, we need to use the ?dir= parameter to point to it,
+            // while the git+file:// URL must point to the git repository root.
+            const gitRootResult = await exec.getExecOutput("git", ["rev-parse", "--show-toplevel"], { cwd: flakeDir, silent: true });
+            if (gitRootResult.exitCode !== 0) {
+                throw new Error(`git rev-parse --show-toplevel failed in ${flakeDir}: ${gitRootResult.stderr || gitRootResult.stdout}`);
+            }
+            // Use fs.realpathSync to resolve symlinks (e.g., /var -> /private/var on macOS)
+            const gitRepoRoot = fs.realpathSync(gitRootResult.stdout.trim());
+            const realFlakeDir = fs.realpathSync(flakeDir);
+            // Calculate the subdirectory relative to the git root
+            const flakeSubdir = path.relative(gitRepoRoot, realFlakeDir);
+            const flakeUrl = new URL(`git+file://${gitRepoRoot}`);
+            flakeUrl.searchParams.set("shallow", "1");
+            if (flakeSubdir !== "") {
+                flakeUrl.searchParams.set("dir", flakeSubdir);
+            }
+            await exec.exec("nix", ["flake", "update", "--flake", flakeUrl.toString(), inputName], {
                 cwd: flakeDir,
             });
             core.info(`Successfully updated flake input: ${inputName} in ${flakeFile}`);

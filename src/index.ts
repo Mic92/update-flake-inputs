@@ -14,7 +14,8 @@ export async function processFlakeUpdates(
   labels: string[],
   enableAutoMerge: boolean,
   autoMergeMethod: AutoMergeMethod,
-  deleteBranchOnMerge: boolean
+  deleteBranchOnMerge: boolean,
+  commitMessageTemplate: string
 ): Promise<void> {
 
     // Discover all flake.nix files
@@ -52,9 +53,11 @@ export async function processFlakeUpdates(
               await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
               
               // Commit changes with appropriate message
-              const commitMessage = flake.filePath === 'flake.nix' 
-                ? `Update flake input: ${input}`
-                : `Update flake input: ${input} in ${flake.filePath}`;
+              const inSuffix = flake.filePath === 'flake.nix' ? '' : ` in ${flake.filePath}`;
+              const commitMessage = commitMessageTemplate
+                .replace(/\{\{input\}\}/g, () => input)
+                .replace(/\{\{flake-file\}\}/g, () => flake.filePath)
+                .replace(/\{\{in\}\}/g, () => inSuffix);
               const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
               
               if (hasChanges) {
@@ -116,7 +119,8 @@ async function run(): Promise<void> {
       );
     }
     const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
-    
+    const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}';
+
     // Git configuration
     const gitConfig: GitConfig = {
       authorName: core.getInput('git-author-name') || 'github-actions[bot]',
@@ -163,7 +167,8 @@ async function run(): Promise<void> {
       labels,
       enableAutoMerge,
       autoMergeMethod,
-      deleteBranchOnMerge
+      deleteBranchOnMerge,
+      commitMessageTemplate
     );
   } catch (error) {
     core.setFailed(`Action failed: ${error}`);

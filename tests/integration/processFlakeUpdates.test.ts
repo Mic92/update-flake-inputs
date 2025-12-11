@@ -164,6 +164,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         false,
         "MERGE",
         true,
+        "Update flake input: {{input}}{{in}}",
       );
 
       // Verify NO pull request creation was attempted
@@ -319,6 +320,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         false,
         "MERGE",
         true,
+        "Update flake input: {{input}}{{in}}",
       );
 
       // Verify pull request creation was attempted

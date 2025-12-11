@@ -274,4 +274,132 @@ describe("FlakeService Integration Tests", () => {
       expect(lock.nodes["nonexistent"]).toBeUndefined();
     }, 10000); // 30 second timeout
   });
+
+  describe("updateFlakeInput with subdirectory flake in worktree", () => {
+    let tempDir: string;
+    let worktreePath: string;
+    let originalCwd: string;
+
+    beforeEach(async () => {
+      // Save original working directory
+      originalCwd = process.cwd();
+
+      // Create a temporary directory outside the git repo
+      tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "flake-update-subdir-test-"),
+      );
+
+      // Create a subdirectory for the flake (simulating dev-flake/flake.nix)
+      const subDir = path.join(tempDir, "dev-flake");
+      fs.mkdirSync(subDir, { recursive: true });
+
+      // Copy test files to the subdirectory
+      fs.copyFileSync(
+        path.join(fixturesPath, "minimal/flake.nix"),
+        path.join(subDir, "flake.nix"),
+      );
+      fs.copyFileSync(
+        path.join(fixturesPath, "minimal/flake.lock"),
+        path.join(subDir, "flake.lock"),
+      );
+
+      // Initialize git repo in temp directory (at root, not subdirectory)
+      await exec.exec("git", ["init", "-b", "main"], { cwd: tempDir });
+      await exec.exec("git", ["add", "."], { cwd: tempDir });
+      await exec.exec("git", ["commit", "-m", "Initial commit"], {
+        cwd: tempDir,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: "Test User",
+          GIT_AUTHOR_EMAIL: "test@example.com",
+          GIT_COMMITTER_NAME: "Test User",
+          GIT_COMMITTER_EMAIL: "test@example.com",
+        },
+      });
+
+      // Create a worktree (simulating what GitHubService.createBranch does)
+      worktreePath = fs.mkdtempSync(
+        path.join(os.tmpdir(), "flake-update-worktree-"),
+      );
+      // Remove the empty dir so git worktree can create it
+      fs.rmdirSync(worktreePath);
+      await exec.exec(
+        "git",
+        ["worktree", "add", worktreePath, "-b", "update-test-branch"],
+        { cwd: tempDir },
+      );
+
+      // Change to the main repo directory for the test
+      process.chdir(tempDir);
+    });
+
+    afterEach(async () => {
+      // Restore original working directory
+      process.chdir(originalCwd);
+
+      // Clean up worktree
+      try {
+        await exec.exec(
+          "git",
+          ["worktree", "remove", "--force", worktreePath],
+          {
+            cwd: tempDir,
+            ignoreReturnCode: true,
+          },
+        );
+      } catch {
+        // Ignore errors
+      }
+
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true });
+      }
+      if (fs.existsSync(worktreePath)) {
+        fs.rmSync(worktreePath, { recursive: true });
+      }
+    });
+
+    it("should update a flake input in a subdirectory when using worktree", async () => {
+      // This is the regression test for https://github.com/Mic92/update-flake-inputs/issues/27
+      // The bug: when flakeFile is "dev-flake/flake.nix" and workDir is the worktree path,
+      // nix flake update was being called with git+file:// pointing to the subdirectory
+      // instead of the git repo root with a ?dir= parameter.
+
+      const flakeFile = "dev-flake/flake.nix";
+      const lockFilePath = path.join(worktreePath, "dev-flake", "flake.lock");
+
+      // Get the original lock file content
+      const originalLockContent = fs.readFileSync(lockFilePath, "utf8");
+      const originalLock = JSON.parse(originalLockContent);
+      const originalFlakeUtilsRev =
+        originalLock.nodes["flake-utils"].locked.rev;
+
+      // Create a FlakeService instance
+      const tempFlakeService = new FlakeService();
+
+      // Update flake-utils input in the subdirectory flake, using worktree path
+      // This should NOT throw an error about the git repository not existing
+      await tempFlakeService.updateFlakeInput(
+        "flake-utils",
+        flakeFile,
+        worktreePath,
+      );
+
+      // Check that the lock file was modified
+      const updatedLockContent = fs.readFileSync(lockFilePath, "utf8");
+      const updatedLock = JSON.parse(updatedLockContent);
+
+      // The lock file should have changed
+      expect(updatedLockContent).not.toBe(originalLockContent);
+
+      // The flake-utils input should still exist and have been updated
+      expect(updatedLock.nodes["flake-utils"]).toBeDefined();
+      expect(updatedLock.nodes["flake-utils"].locked.owner).toBe("numtide");
+      expect(updatedLock.nodes["flake-utils"].locked.repo).toBe("flake-utils");
+      expect(updatedLock.nodes["flake-utils"].locked.rev).not.toBe(
+        originalFlakeUtilsRev,
+      );
+    }, 30000);
+  });
 });

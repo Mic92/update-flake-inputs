@@ -148,17 +148,37 @@ export class FlakeService {
       const flakeDir = path.dirname(absoluteFlakePath);
 
       // Use nix flake update to update specific input.
-      // The shallow url is needed because we may not have th full history of the git repository.
-      const absoluteFlakeDir = path.resolve(flakeDir);
+      // The shallow url is needed because we may not have the full history of the git repository.
+      // When the flake is in a subdirectory, we need to use the ?dir= parameter to point to it,
+      // while the git+file:// URL must point to the git repository root.
+      const gitRootResult = await exec.getExecOutput(
+        "git",
+        ["rev-parse", "--show-toplevel"],
+        { cwd: flakeDir, silent: true },
+      );
+
+      if (gitRootResult.exitCode !== 0) {
+        throw new Error(
+          `git rev-parse --show-toplevel failed in ${flakeDir}: ${gitRootResult.stderr || gitRootResult.stdout}`,
+        );
+      }
+
+      // Use fs.realpathSync to resolve symlinks (e.g., /var -> /private/var on macOS)
+      const gitRepoRoot = fs.realpathSync(gitRootResult.stdout.trim());
+      const realFlakeDir = fs.realpathSync(flakeDir);
+
+      // Calculate the subdirectory relative to the git root
+      const flakeSubdir = path.relative(gitRepoRoot, realFlakeDir);
+
+      const flakeUrl = new URL(`git+file://${gitRepoRoot}`);
+      flakeUrl.searchParams.set("shallow", "1");
+      if (flakeSubdir !== "") {
+        flakeUrl.searchParams.set("dir", flakeSubdir);
+      }
+
       await exec.exec(
         "nix",
-        [
-          "flake",
-          "update",
-          "--flake",
-          `git+file://${absoluteFlakeDir}?shallow=1`,
-          inputName,
-        ],
+        ["flake", "update", "--flake", flakeUrl.toString(), inputName],
         {
           cwd: flakeDir,
         },
