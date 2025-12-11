@@ -34,7 +34,8 @@ jobs:
 
       - name: Update vendor dependencies
         run: |
-          ./scripts/update-vendor-deps.sh
+          npm install
+          npm run build
           # git push if we have a diff
           if [[ -n $(git diff) ]]; then
             git add package.json package-lock.json dist/
