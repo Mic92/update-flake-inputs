@@ -50,14 +50,16 @@ export async function processFlakeUpdates(
             
             try {
               // Update the specific flake input in the worktree
-              await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
+              const updateMessage = await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
               
               // Commit changes with appropriate message
               const inSuffix = flake.filePath === 'flake.nix' ? '' : ` in ${flake.filePath}`;
               const commitMessage = commitMessageTemplate
                 .replace(/\{\{input\}\}/g, () => input)
                 .replace(/\{\{flake-file\}\}/g, () => flake.filePath)
-                .replace(/\{\{in\}\}/g, () => inSuffix);
+                .replace(/\{\{in\}\}/g, () => inSuffix)
+                .replace(/\{\{updateMessage\}\}/g, () => updateMessage)
+                .replace(/\\n/g, '\n');
               const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
               
               if (hasChanges) {
@@ -119,7 +121,7 @@ async function run(): Promise<void> {
       );
     }
     const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
-    const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}';
+    const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}\n\n{{updateMessage}}';
 
     // Git configuration
     const gitConfig: GitConfig = {
