@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as exec from '@actions/exec';
-import { FlakeService, Flake } from './services/flakeService';
-import { GitHubService, GitConfig } from './services/githubService';
+import { FlakeService, Flake } from './services/flakeService.js';
+import { GitHubService, GitConfig } from './services/githubService.js';
 
 export type AutoMergeMethod = "MERGE" | "SQUASH" | "REBASE";
 

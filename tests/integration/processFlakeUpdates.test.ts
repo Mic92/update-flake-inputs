@@ -1,20 +1,29 @@
-import { processFlakeUpdates } from "../../src/index";
-import { FlakeService } from "../../src/services/flakeService";
-import { GitHubService, GitConfig } from "../../src/services/githubService";
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+} from "@jest/globals";
+import * as coreMock from "../__fixtures__/core.js";
 import * as path from "path";
 import * as fs from "fs";
 import * as exec from "@actions/exec";
 import * as os from "os";
-import * as github from "@actions/github";
-import * as core from "@actions/core";
 
-// Mock @actions/core just for logging
-jest.mock("@actions/core", () => ({
-  info: jest.fn(),
-  warning: jest.fn(),
-  error: jest.fn(),
-  setFailed: jest.fn(),
-}));
+// Mock @actions/core with fixture - must be before importing modules that use it
+jest.unstable_mockModule("@actions/core", () => coreMock);
+
+// Dynamic imports after mock setup
+const core = await import("@actions/core");
+const { processFlakeUpdates } = await import("../../src/index.js");
+const { FlakeService } = await import("../../src/services/flakeService.js");
+const { GitHubService } = await import("../../src/services/githubService.js");
+
+import type { GitConfig } from "../../src/services/githubService.js";
+
+type GitHubServiceParams = ConstructorParameters<typeof GitHubService>;
 
 // Create a custom GitHubService that prevents actual PR creation
 class TestGitHubService extends GitHubService {
@@ -45,10 +54,10 @@ class TestGitHubService extends GitHubService {
     baseBranch: string,
     title: string,
     body: string,
-    labels: string[] = [],
-    enableAutoMerge = false,
-    autoMergeMethod?: "MERGE" | "SQUASH" | "REBASE",
-    deleteBranchOnMerge = true,
+    _labels: string[] = [],
+    _enableAutoMerge = false,
+    _autoMergeMethod?: "MERGE" | "SQUASH" | "REBASE",
+    _deleteBranchOnMerge = true,
   ): Promise<void> {
     // Record the attempt but don't actually create a PR
     this.prCreationAttempts.push({ branchName, baseBranch, title, body });
@@ -57,7 +66,7 @@ class TestGitHubService extends GitHubService {
 }
 
 describe("processFlakeUpdates Integration Tests", () => {
-  const fixturesPath = path.join(__dirname, "..", "fixtures");
+  const fixturesPath = path.join(import.meta.dirname, "..", "fixtures");
 
   describe("with up-to-date flake input", () => {
     let tempDir: string;
@@ -147,10 +156,10 @@ describe("processFlakeUpdates Integration Tests", () => {
         signoff: true,
       };
       const testGitHubService = new TestGitHubService(
-        mockOctokit as any,
+        mockOctokit as unknown as GitHubServiceParams[0],
         {
           repo: { owner: "test", repo: "test-repo" },
-        } as any,
+        } as unknown as GitHubServiceParams[1],
         gitConfig,
       );
 
@@ -303,10 +312,10 @@ describe("processFlakeUpdates Integration Tests", () => {
         signoff: true,
       };
       const testGitHubService = new TestGitHubService(
-        mockOctokit as any,
+        mockOctokit as unknown as GitHubServiceParams[0],
         {
           repo: { owner: "test", repo: "test-repo" },
-        } as any,
+        } as unknown as GitHubServiceParams[1],
         gitConfig,
       );
 

@@ -1,20 +1,26 @@
-import { FlakeService } from "../../src/services/flakeService";
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+} from "@jest/globals";
+import * as core from "../__fixtures__/core.js";
 import * as path from "path";
 import * as fs from "fs";
 import * as exec from "@actions/exec";
 import * as os from "os";
 
-// Mock @actions/core
-jest.mock("@actions/core", () => ({
-  info: jest.fn(),
-  warning: jest.fn(),
-  error: jest.fn(),
-  setFailed: jest.fn(),
-}));
+// Mock @actions/core with fixture
+jest.unstable_mockModule("@actions/core", () => core);
+
+// Import after mock setup
+const { FlakeService } = await import("../../src/services/flakeService.js");
 
 describe("FlakeService Integration Tests", () => {
-  let flakeService: FlakeService;
-  const fixturesPath = path.join(__dirname, "..", "fixtures");
+  let flakeService: InstanceType<typeof FlakeService>;
+  const fixturesPath = path.join(import.meta.dirname, "..", "fixtures");
 
   beforeEach(() => {
     flakeService = new FlakeService();
@@ -24,7 +30,8 @@ describe("FlakeService Integration Tests", () => {
 
   afterEach(() => {
     // Reset to original directory
-    process.chdir(path.join(__dirname, "..", ".."));
+    process.chdir(path.join(import.meta.dirname, "..", ".."));
+    jest.resetAllMocks();
   });
 
   describe("discoverFlakeFiles", () => {
