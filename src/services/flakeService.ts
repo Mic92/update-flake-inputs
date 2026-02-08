@@ -3,6 +3,7 @@ import * as core from "@actions/core";
 import * as path from "path";
 import * as fs from "fs";
 import * as glob from "glob";
+import { minimatch } from "minimatch";
 
 export class Flake {
   constructor(
@@ -34,10 +35,7 @@ export class FlakeService {
           const [filePattern, outputName] = pattern.split("#");
           // Only exclude the file if there's no output name specified
           if (!outputName) {
-            const regex = new RegExp(
-              filePattern.replace(/\*/g, ".*").replace(/\?/g, "."),
-            );
-            return regex.test(file);
+            return minimatch(file, filePattern);
           }
           return false;
         });
@@ -57,10 +55,7 @@ export class FlakeService {
             .filter((pattern) => {
               const [filePattern, outputName] = pattern.split("#");
               if (outputName) {
-                const regex = new RegExp(
-                  filePattern.replace(/\*/g, ".*").replace(/\?/g, "."),
-                );
-                return regex.test(file);
+                return minimatch(file, filePattern);
               }
               return false;
             })
