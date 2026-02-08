@@ -310,7 +310,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         gitConfig,
       );
 
-      // Process flake updates
+      // Process flake updates using the new default template with {{updateMessage}}
       await processFlakeUpdates(
         flakeService,
         testGitHubService,
@@ -320,7 +320,7 @@ describe("processFlakeUpdates Integration Tests", () => {
         false,
         "MERGE",
         true,
-        "Update flake input: {{input}}{{in}}",
+        "Update flake input: {{input}}{{in}}\\n\\n{{updateMessage}}",
       );
 
       // Verify pull request creation was attempted
@@ -346,16 +346,33 @@ describe("processFlakeUpdates Integration Tests", () => {
       ]);
       expect(currentBranch.stdout.trim()).toBe("main");
 
-      // Verify a commit was made on the update branch
+      // Verify a commit was made on the update branch with the update message
       const logOutput = await exec.getExecOutput("git", [
         "log",
-        "--oneline",
+        "--format=%B",
+        "-1",
         "update-flake-utils",
       ]);
-      const commits = logOutput.stdout.trim().split("\n");
-      expect(commits).toHaveLength(2);
-      expect(commits[0]).toContain("Update flake input: flake-utils");
-      expect(commits[1]).toContain("Initial commit");
+      const commitMessage = logOutput.stdout.trim();
+
+      // First line should be the title
+      expect(commitMessage).toMatch(/^Update flake input: flake-utils/);
+
+      // Should contain a real newline (\\n was converted to \n)
+      expect(commitMessage).toContain("\n");
+
+      // The update message from nix should mention the flake-utils lock change
+      // nix flake update outputs lines like:
+      //   • Updated input 'flake-utils': '...' → '...'
+      expect(commitMessage).toMatch(/flake-utils/);
+      // The body should contain actual nix update output (not 'unpacking' or 'warning' lines)
+      const bodyLines = commitMessage.split("\n").slice(2); // skip title + blank line
+      for (const line of bodyLines) {
+        if (line.trim() !== "") {
+          expect(line).not.toMatch(/^unpacking /);
+          expect(line).not.toMatch(/^warning: /);
+        }
+      }
     }, 15000);
   });
 });

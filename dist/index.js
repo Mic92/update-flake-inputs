@@ -31294,9 +31294,12 @@ class FlakeService {
         return path.join(flakeDir, "flake.lock");
     }
     async cleanUpdateMessage(stderr) {
-        return stderr.split('\n').filter(line => line.trim() !== '' &&
-            !line.startsWith('unpacking ') &&
-            !line.startsWith('warning: ')).join('\n');
+        return stderr
+            .split("\n")
+            .filter((line) => line.trim() !== "" &&
+            !line.startsWith("unpacking ") &&
+            !line.startsWith("warning: "))
+            .join("\n");
     }
 }
 exports.FlakeService = FlakeService;
