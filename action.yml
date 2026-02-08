@@ -44,9 +44,9 @@ inputs:
     required: false
     default: 'true'
   commit-message:
-    description: 'Custom commit message template. Supports {{input}}, {{flake-file}}, and {{in}} (expands to " in <path>" for subdirectory flakes, empty for root) placeholders.'
+    description: 'Custom commit message template. Supports {{input}}, {{flake-file}}, {{in}} (expands to " in <path>" for subdirectory flakes, empty for root) and {{updateMessage}} placeholders.'
     required: false
-    default: 'Update flake input: {{input}}{{in}}'
+    default: 'Update flake input: {{input}}{{in}}\n\n{{updateMessage}}'
   delete-branch:
     description: 'Delete branch after pull request is merged'
     required: false

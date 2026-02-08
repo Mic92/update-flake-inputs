@@ -7,6 +7,7 @@ export declare class Flake {
 export declare class FlakeService {
     discoverFlakeFiles(excludePatterns?: string): Promise<Flake[]>;
     getFlakeInputs(flake: Flake): Promise<string[]>;
-    updateFlakeInput(inputName: string, flakeFile: string, workDir?: string): Promise<void>;
+    updateFlakeInput(inputName: string, flakeFile: string, workDir?: string): Promise<string>;
     getFlakeLockPath(flakeFile: string): Promise<string>;
+    cleanUpdateMessage(stderr: string): Promise<string>;
 }

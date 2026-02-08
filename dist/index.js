@@ -30997,13 +30997,15 @@ async function processFlakeUpdates(flakeService, githubService, excludePatterns,
                     const worktreePath = await githubService.createBranch(branchName, baseBranch);
                     try {
                         // Update the specific flake input in the worktree
-                        await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
+                        const updateMessage = await flakeService.updateFlakeInput(input, flake.filePath, worktreePath);
                         // Commit changes with appropriate message
                         const inSuffix = flake.filePath === 'flake.nix' ? '' : ` in ${flake.filePath}`;
                         const commitMessage = commitMessageTemplate
                             .replace(/\{\{input\}\}/g, () => input)
                             .replace(/\{\{flake-file\}\}/g, () => flake.filePath)
-                            .replace(/\{\{in\}\}/g, () => inSuffix);
+                            .replace(/\{\{in\}\}/g, () => inSuffix)
+                            .replace(/\{\{updateMessage\}\}/g, () => updateMessage)
+                            .replace(/\\n/g, '\n');
                         const hasChanges = await githubService.commitChanges(branchName, commitMessage, worktreePath);
                         if (hasChanges) {
                             // Create pull request with appropriate title and body
@@ -31051,7 +31053,7 @@ async function run() {
             throw new Error(`Invalid input for auto-merge-method: ${autoMergeMethod}. Expected one of MERGE, SQUASH, or REBASE.`);
         }
         const deleteBranchOnMerge = core.getInput('delete-branch') === 'true';
-        const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}';
+        const commitMessageTemplate = core.getInput('commit-message') || 'Update flake input: {{input}}{{in}}\n\n{{updateMessage}}';
         // Git configuration
         const gitConfig = {
             authorName: core.getInput('git-author-name') || 'github-actions[bot]',
@@ -31277,10 +31279,11 @@ class FlakeService {
             if (flakeSubdir !== "") {
                 flakeUrl.searchParams.set("dir", flakeSubdir);
             }
-            await exec.exec("nix", ["flake", "update", "--flake", flakeUrl.toString(), inputName], {
+            const output = await exec.getExecOutput("nix", ["flake", "update", "--flake", flakeUrl.toString(), inputName], {
                 cwd: flakeDir,
             });
             core.info(`Successfully updated flake input: ${inputName} in ${flakeFile}`);
+            return this.cleanUpdateMessage(output.stderr);
         }
         catch (error) {
             throw new Error(`Failed to update flake input ${inputName} in ${flakeFile}: ${error}`);
@@ -31289,6 +31292,14 @@ class FlakeService {
     async getFlakeLockPath(flakeFile) {
         const flakeDir = path.dirname(flakeFile);
         return path.join(flakeDir, "flake.lock");
+    }
+    async cleanUpdateMessage(stderr) {
+        return stderr
+            .split("\n")
+            .filter((line) => line.trim() !== "" &&
+            !line.startsWith("unpacking ") &&
+            !line.startsWith("warning: "))
+            .join("\n");
     }
 }
 exports.FlakeService = FlakeService;

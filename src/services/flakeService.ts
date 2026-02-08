@@ -137,7 +137,7 @@ export class FlakeService {
     inputName: string,
     flakeFile: string,
     workDir?: string,
-  ): Promise<void> {
+  ): Promise<string> {
     try {
       core.info(`Updating flake input: ${inputName} in ${flakeFile}`);
 
@@ -176,7 +176,7 @@ export class FlakeService {
         flakeUrl.searchParams.set("dir", flakeSubdir);
       }
 
-      await exec.exec(
+      const output = await exec.getExecOutput(
         "nix",
         ["flake", "update", "--flake", flakeUrl.toString(), inputName],
         {
@@ -187,6 +187,8 @@ export class FlakeService {
       core.info(
         `Successfully updated flake input: ${inputName} in ${flakeFile}`,
       );
+
+      return this.cleanUpdateMessage(output.stderr);
     } catch (error) {
       throw new Error(
         `Failed to update flake input ${inputName} in ${flakeFile}: ${error}`,
@@ -197,5 +199,17 @@ export class FlakeService {
   async getFlakeLockPath(flakeFile: string): Promise<string> {
     const flakeDir = path.dirname(flakeFile);
     return path.join(flakeDir, "flake.lock");
+  }
+
+  async cleanUpdateMessage(stderr: string): Promise<string> {
+    return stderr
+      .split("\n")
+      .filter(
+        (line) =>
+          line.trim() !== "" &&
+          !line.startsWith("unpacking ") &&
+          !line.startsWith("warning: "),
+      )
+      .join("\n");
   }
 }
