@@ -117,6 +117,48 @@ describe("FlakeService Integration Tests", () => {
       expect(nestedSubflake!.inputs).toContain("nixos-hardware");
     }, 10000);
 
+    it("should exclude specific inputs from root-level flake.nix using ** glob pattern", async () => {
+      // Regression test for https://github.com/Mic92/update-flake-inputs/issues/58
+      // The pattern **/flake.nix#<input> should match root-level flake.nix too,
+      // not just subdirectory flakes like sub/flake.nix
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "exclude-root-test-"),
+      );
+      const originalCwd = process.cwd();
+
+      try {
+        // Copy simple fixture to root of temp dir (so flake.nix is at root level)
+        fs.copyFileSync(
+          path.join(fixturesPath, "simple/flake.nix"),
+          path.join(tempDir, "flake.nix"),
+        );
+        fs.copyFileSync(
+          path.join(fixturesPath, "simple/flake.lock"),
+          path.join(tempDir, "flake.lock"),
+        );
+
+        process.chdir(tempDir);
+
+        const flakes = await flakeService.discoverFlakeFiles(
+          "**/flake.nix#flake-utils",
+        );
+
+        // Should still discover the root flake.nix
+        expect(flakes.length).toBe(1);
+        const rootFlake = flakes[0];
+        expect(rootFlake.filePath).toBe("flake.nix");
+
+        // flake-utils should be excluded
+        expect(rootFlake.inputs).not.toContain("flake-utils");
+
+        // nixos-hardware should still be present
+        expect(rootFlake.inputs).toContain("nixos-hardware");
+      } finally {
+        process.chdir(originalCwd);
+        fs.rmSync(tempDir, { recursive: true });
+      }
+    }, 10000);
+
     it("should handle mixed exclude patterns", async () => {
       const flakes = await flakeService.discoverFlakeFiles(
         "simple/**,subflake/sub/flake.nix#nixos-hardware",
