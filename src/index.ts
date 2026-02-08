@@ -105,7 +105,7 @@ async function run(): Promise<void> {
   
   try {
     // Get inputs
-    const githubToken = core.getInput('github-token', { required: true });
+    const githubToken = core.getInput('github-token');
     const excludePatterns = core.getInput('exclude-patterns') || '';
     const prLabelsInput = core.getInput('pr-labels') || 'dependencies';
     const enableAutoMerge = core.getInput('auto-merge') === 'true';

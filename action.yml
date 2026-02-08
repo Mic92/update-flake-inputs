@@ -5,7 +5,8 @@ author: 'Your Name'
 inputs:
   github-token:
     description: 'GitHub token for creating pull requests'
-    required: true
+    required: false
+    default: ${{ github.token }}
   exclude-patterns:
     description: 'Comma-separated list of glob patterns to exclude flake.nix files'
     required: false
