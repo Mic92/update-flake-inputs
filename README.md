@@ -59,8 +59,8 @@ jobs:
 
       - name: Update flake inputs
         uses: mic92/update-flake-inputs@main
+        # github-token defaults to ${{ github.token }}
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           # Optional: exclude specific files or inputs
           # exclude-patterns: 'tests/**/flake.nix,examples/**/flake.nix#home-manager'
           # Optional: add custom labels (default: 'dependencies')
@@ -183,7 +183,7 @@ The GitHub App needs the following repository permissions:
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `github-token` | GitHub token for creating pull requests | Yes | - |
+| `github-token` | GitHub token for creating pull requests | No | `${{ github.token }}` |
 | `exclude-patterns` | Comma-separated list of glob patterns to exclude flake.nix files or specific inputs using `pattern#inputname` syntax | No | `''` |
 | `pr-labels` | Comma-separated list of labels to add to created pull requests (labels will be created if they don't exist) | No | `'dependencies'` |
 | `auto-merge` | Enable auto-merge for created pull requests (requires auto-merge to be enabled in repository settings) | No | `'false'` |
